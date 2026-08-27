@@ -22,8 +22,9 @@ export function GlobalSearch({ open, onOpenChange }: Props) {
   };
 
   return (
-    <CommandDialog open={open} onOpenChange={onOpenChange} title="Busca global" description="Buscar no site">
-      <CommandInput placeholder="Buscar páginas, notícias, documentos, convênios..." />
+    <CommandDialog open={open} onOpenChange={onOpenChange}>
+      <CommandInput placeholder="Buscar páginas, notícias, documentos, convênios..." aria-label="Busca global" />
+
       <CommandList>
         <CommandEmpty>
           Nenhum resultado encontrado. Tente outra palavra, como “convenção”, “piso” ou “saúde”.
