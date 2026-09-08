@@ -10,33 +10,64 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ComoFuncionaRouteImport } from './routes/como-funciona'
+import { Route as DireitosEAcordosRouteImport } from './routes/direitos-e-acordos'
+import { Route as OSindicatoRouteImport } from './routes/o-sindicato'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ComoFuncionaRoute = ComoFuncionaRouteImport.update({
+  id: '/como-funciona',
+  path: '/como-funciona',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DireitosEAcordosRoute = DireitosEAcordosRouteImport.update({
+  id: '/direitos-e-acordos',
+  path: '/direitos-e-acordos',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const OSindicatoRoute = OSindicatoRouteImport.update({
+  id: '/o-sindicato',
+  path: '/o-sindicato',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/como-funciona': typeof ComoFuncionaRoute
+  '/direitos-e-acordos': typeof DireitosEAcordosRoute
+  '/o-sindicato': typeof OSindicatoRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/como-funciona': typeof ComoFuncionaRoute
+  '/direitos-e-acordos': typeof DireitosEAcordosRoute
+  '/o-sindicato': typeof OSindicatoRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/como-funciona': typeof ComoFuncionaRoute
+  '/direitos-e-acordos': typeof DireitosEAcordosRoute
+  '/o-sindicato': typeof OSindicatoRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths: '/' | '/como-funciona' | '/direitos-e-acordos' | '/o-sindicato'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to: '/' | '/como-funciona' | '/direitos-e-acordos' | '/o-sindicato'
+  id:
+    '__root__' | '/' | '/como-funciona' | '/direitos-e-acordos' | '/o-sindicato'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  ComoFuncionaRoute: typeof ComoFuncionaRoute
+  DireitosEAcordosRoute: typeof DireitosEAcordosRoute
+  OSindicatoRoute: typeof OSindicatoRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -48,11 +79,35 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/como-funciona': {
+      id: '/como-funciona'
+      path: '/como-funciona'
+      fullPath: '/como-funciona'
+      preLoaderRoute: typeof ComoFuncionaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/direitos-e-acordos': {
+      id: '/direitos-e-acordos'
+      path: '/direitos-e-acordos'
+      fullPath: '/direitos-e-acordos'
+      preLoaderRoute: typeof DireitosEAcordosRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/o-sindicato': {
+      id: '/o-sindicato'
+      path: '/o-sindicato'
+      fullPath: '/o-sindicato'
+      preLoaderRoute: typeof OSindicatoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  ComoFuncionaRoute: ComoFuncionaRoute,
+  DireitosEAcordosRoute: DireitosEAcordosRoute,
+  OSindicatoRoute: OSindicatoRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
