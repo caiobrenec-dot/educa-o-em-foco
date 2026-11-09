@@ -12,9 +12,12 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as BeneficiosRouteImport } from './routes/beneficios'
 import { Route as ComoFuncionaRouteImport } from './routes/como-funciona'
+import { Route as ContatoRouteImport } from './routes/contato'
 import { Route as DireitosEAcordosRouteImport } from './routes/direitos-e-acordos'
 import { Route as EventosRouteImport } from './routes/eventos'
+import { Route as LazerRouteImport } from './routes/lazer'
 import { Route as OSindicatoRouteImport } from './routes/o-sindicato'
+import { Route as SaudeRouteImport } from './routes/saude'
 import { Route as NoticiasIndexRouteImport } from './routes/noticias.index'
 import { Route as NoticiasSlugRouteImport } from './routes/noticias.$slug'
 
@@ -33,6 +36,11 @@ const ComoFuncionaRoute = ComoFuncionaRouteImport.update({
   path: '/como-funciona',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ContatoRoute = ContatoRouteImport.update({
+  id: '/contato',
+  path: '/contato',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const DireitosEAcordosRoute = DireitosEAcordosRouteImport.update({
   id: '/direitos-e-acordos',
   path: '/direitos-e-acordos',
@@ -43,9 +51,19 @@ const EventosRoute = EventosRouteImport.update({
   path: '/eventos',
   getParentRoute: () => rootRouteImport,
 } as any)
+const LazerRoute = LazerRouteImport.update({
+  id: '/lazer',
+  path: '/lazer',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const OSindicatoRoute = OSindicatoRouteImport.update({
   id: '/o-sindicato',
   path: '/o-sindicato',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SaudeRoute = SaudeRouteImport.update({
+  id: '/saude',
+  path: '/saude',
   getParentRoute: () => rootRouteImport,
 } as any)
 const NoticiasIndexRoute = NoticiasIndexRouteImport.update({
@@ -63,9 +81,12 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/beneficios': typeof BeneficiosRoute
   '/como-funciona': typeof ComoFuncionaRoute
+  '/contato': typeof ContatoRoute
   '/direitos-e-acordos': typeof DireitosEAcordosRoute
   '/eventos': typeof EventosRoute
+  '/lazer': typeof LazerRoute
   '/o-sindicato': typeof OSindicatoRoute
+  '/saude': typeof SaudeRoute
   '/noticias/$slug': typeof NoticiasSlugRoute
   '/noticias/': typeof NoticiasIndexRoute
 }
@@ -73,9 +94,12 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/beneficios': typeof BeneficiosRoute
   '/como-funciona': typeof ComoFuncionaRoute
+  '/contato': typeof ContatoRoute
   '/direitos-e-acordos': typeof DireitosEAcordosRoute
   '/eventos': typeof EventosRoute
+  '/lazer': typeof LazerRoute
   '/o-sindicato': typeof OSindicatoRoute
+  '/saude': typeof SaudeRoute
   '/noticias/$slug': typeof NoticiasSlugRoute
   '/noticias': typeof NoticiasIndexRoute
 }
@@ -84,9 +108,12 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/beneficios': typeof BeneficiosRoute
   '/como-funciona': typeof ComoFuncionaRoute
+  '/contato': typeof ContatoRoute
   '/direitos-e-acordos': typeof DireitosEAcordosRoute
   '/eventos': typeof EventosRoute
+  '/lazer': typeof LazerRoute
   '/o-sindicato': typeof OSindicatoRoute
+  '/saude': typeof SaudeRoute
   '/noticias/$slug': typeof NoticiasSlugRoute
   '/noticias/': typeof NoticiasIndexRoute
 }
@@ -96,9 +123,12 @@ export interface FileRouteTypes {
     | '/'
     | '/beneficios'
     | '/como-funciona'
+    | '/contato'
     | '/direitos-e-acordos'
     | '/eventos'
+    | '/lazer'
     | '/o-sindicato'
+    | '/saude'
     | '/noticias/$slug'
     | '/noticias/'
   fileRoutesByTo: FileRoutesByTo
@@ -106,9 +136,12 @@ export interface FileRouteTypes {
     | '/'
     | '/beneficios'
     | '/como-funciona'
+    | '/contato'
     | '/direitos-e-acordos'
     | '/eventos'
+    | '/lazer'
     | '/o-sindicato'
+    | '/saude'
     | '/noticias/$slug'
     | '/noticias'
   id:
@@ -116,9 +149,12 @@ export interface FileRouteTypes {
     | '/'
     | '/beneficios'
     | '/como-funciona'
+    | '/contato'
     | '/direitos-e-acordos'
     | '/eventos'
+    | '/lazer'
     | '/o-sindicato'
+    | '/saude'
     | '/noticias/$slug'
     | '/noticias/'
   fileRoutesById: FileRoutesById
@@ -127,9 +163,12 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   BeneficiosRoute: typeof BeneficiosRoute
   ComoFuncionaRoute: typeof ComoFuncionaRoute
+  ContatoRoute: typeof ContatoRoute
   DireitosEAcordosRoute: typeof DireitosEAcordosRoute
   EventosRoute: typeof EventosRoute
+  LazerRoute: typeof LazerRoute
   OSindicatoRoute: typeof OSindicatoRoute
+  SaudeRoute: typeof SaudeRoute
   NoticiasSlugRoute: typeof NoticiasSlugRoute
   NoticiasIndexRoute: typeof NoticiasIndexRoute
 }
@@ -157,6 +196,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ComoFuncionaRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/contato': {
+      id: '/contato'
+      path: '/contato'
+      fullPath: '/contato'
+      preLoaderRoute: typeof ContatoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/direitos-e-acordos': {
       id: '/direitos-e-acordos'
       path: '/direitos-e-acordos'
@@ -171,11 +217,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof EventosRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/lazer': {
+      id: '/lazer'
+      path: '/lazer'
+      fullPath: '/lazer'
+      preLoaderRoute: typeof LazerRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/o-sindicato': {
       id: '/o-sindicato'
       path: '/o-sindicato'
       fullPath: '/o-sindicato'
       preLoaderRoute: typeof OSindicatoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/saude': {
+      id: '/saude'
+      path: '/saude'
+      fullPath: '/saude'
+      preLoaderRoute: typeof SaudeRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/noticias/': {
@@ -199,9 +259,12 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   BeneficiosRoute: BeneficiosRoute,
   ComoFuncionaRoute: ComoFuncionaRoute,
+  ContatoRoute: ContatoRoute,
   DireitosEAcordosRoute: DireitosEAcordosRoute,
   EventosRoute: EventosRoute,
+  LazerRoute: LazerRoute,
   OSindicatoRoute: OSindicatoRoute,
+  SaudeRoute: SaudeRoute,
   NoticiasSlugRoute: NoticiasSlugRoute,
   NoticiasIndexRoute: NoticiasIndexRoute,
 }
