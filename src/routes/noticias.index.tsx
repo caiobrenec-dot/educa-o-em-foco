@@ -12,7 +12,7 @@ import { formatarData } from "@/lib/masks";
 export const Route = createFileRoute("/noticias/")({
   head: () => ({
     meta: [
-      { title: "Notícias e comunicados do sindicato da educação" },
+      { title: "Notícias e Comunicados — Sinpro Londrina" },
       {
         name: "description",
         content:

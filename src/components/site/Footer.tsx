@@ -88,10 +88,9 @@ export function Footer() {
       <div className="border-t border-primary-foreground/15">
         <div className="container-page flex flex-col gap-2 py-5 text-xs text-primary-foreground/70 sm:flex-row sm:items-center sm:justify-between">
           <p>
-            © {new Date().getFullYear()} {site.nome}. Nome, marca e conteúdos são fictícios e usados apenas
-            para demonstração.
+            © {new Date().getFullYear()} {site.nome}. Todos os direitos reservados.
           </p>
-          <p>Protótipo institucional — dados de demonstração.</p>
+          <p>Entidade sindical filiada à Contee e Fepesp.</p>
         </div>
       </div>
     </footer>

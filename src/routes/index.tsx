@@ -29,13 +29,13 @@ import { formatarData } from "@/lib/masks";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Sindicato da Educação Regional — direitos, benefícios e representação" },
+      { title: "Sinpro Londrina — Sindicato dos Profissionais da Educação" },
       {
         name: "description",
         content:
           "Conheça seus direitos, acompanhe as negociações coletivas e acesse benefícios, saúde e lazer para profissionais da educação.",
       },
-      { property: "og:title", content: "Sindicato da Educação Regional" },
+      { property: "og:title", content: "Sinpro Londrina" },
       {
         property: "og:description",
         content: "Informação, defesa e benefícios para quem trabalha na educação.",

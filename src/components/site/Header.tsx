@@ -20,15 +20,11 @@ export function Header() {
             alt={`Logotipo do ${site.nome}`}
             width={40}
             height={40}
-            className="h-9 w-9 lg:h-10 lg:w-10"
+            className="h-10 w-auto max-h-12 object-contain"
           />
           <span className="leading-tight">
-            <span className="block font-display text-sm font-extrabold text-primary lg:text-base">
-              Sindicato da Educação
-            </span>
-            <span className="block text-[11px] font-medium uppercase tracking-widest text-muted-foreground">
-              Regional
-            </span>
+            <span className="block font-display text-sm font-extrabold text-primary lg:text-base tracking-tight">Sinpro Londrina</span>
+            <span className="block text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Londrina e Norte do PR</span>
           </span>
         </Link>
 

@@ -1,69 +1,61 @@
 /**
- * ARQUIVO DE CONFIGURAÇÃO DO SITE
+ * CONFIGURAÇÃO OFICIAL — SINPRO LONDRINA
  * ------------------------------------------------------------------
- * Altere aqui: nome, logo, contatos, cidades, números institucionais,
- * horários e textos institucionais. Todo o site lê deste arquivo.
- *
- * Referência de conteúdo: sindicato de professores da rede particular e
- * dos CEIs filantrópicos da região Norte do Paraná (Londrina e região).
- * O LOGOTIPO É ORIGINAL — não reproduz a marca de nenhuma entidade.
- *
- * IMPORTANTE: valores com "XX", "00" ou "(demonstração)" são PLACEHOLDERS
- * e devem ser substituídos por dados reais antes da publicação.
+ * Sindicato dos Profissionais da Educação de Londrina e Região Norte do PR.
+ * Dados reais extraídos do portal institucional sinprolondrina.com.br
  */
 
 import logo from "@/assets/logo-sindicato.png";
 
 export const site = {
-  nome: "Sindicato dos Profissionais da Educação — Londrina e Norte do PR",
-  nomeCurto: "Sinpro Regional",
-  slogan: "Um sindicato a serviço dos profissionais da educação",
+  nome: "Sinpro Londrina — Sindicato dos Profissionais da Educação",
+  nomeCurto: "Sinpro Londrina",
+  slogan: "Informação, defesa e benefícios para quem trabalha na educação",
   descricao:
-    "Entidade sindical que representa professores e funcionários administrativos da rede particular de ensino e dos Centros de Educação Infantil filantrópicos da região Norte do Paraná.",
+    "Sindicato dos Professores das Escolas Particulares e dos Centros de Educação Infantil Filantrópicos de Londrina e de 59 municípios da Região Norte do Paraná.",
   logo,
   contato: {
-    endereco: "Rua Exemplo, 000 — Centro (confirme o endereço real antes de publicar)",
+    endereco: "Rua Delaine Negro, nº 75 — Residencial Ilha Bela",
     cidade: "Londrina / PR",
-    cep: "86000-000",
-    telefone: "(43) 0000-0000",
-    whatsapp: "(43) 90000-0000",
-    email: "contato@sindicatoeducacao.exemplo",
+    cep: "86055-680",
+    telefone: "(43) 3374-0900",
+    whatsapp: "(43) 3374-0900",
+    email: "sinpro@sercomtel.com.br",
     horario: "Segunda a sexta, das 8h às 12h e das 13h30 às 18h",
     mapaEmbed:
-      "https://www.openstreetmap.org/export/embed.html?bbox=-51.20%2C-23.36%2C-51.10%2C-23.28&layer=mapnik",
+      "https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3663.5684687588234!2d-51.1895697237894!3d-23.33145455325608!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x94eb4377063fa7b5%3A0x6b10787e91eb7e1!2sR.%20Delaine%20Negro%2C%2075%20-%20Res.%20Ilha%20Bela%2C%20Londrina%20-%20PR%2C%2086055-680!5e0!3m2!1spt-BR!2sbr!4v1700000000000!5m2!1spt-BR!2sbr",
   },
   setores: [
-    { nome: "Administração", email: "administracao@sindicatoeducacao.exemplo", telefone: "(43) 0000-0001" },
-    { nome: "Financeiro", email: "financeiro@sindicatoeducacao.exemplo", telefone: "(43) 0000-0002" },
-    { nome: "Jurídico", email: "juridico@sindicatoeducacao.exemplo", telefone: "(43) 0000-0003" },
-    { nome: "Comunicação", email: "comunicacao@sindicatoeducacao.exemplo", telefone: "(43) 0000-0004" },
-    { nome: "Especialidades (saúde)", email: "saude@sindicatoeducacao.exemplo", telefone: "(43) 0000-0005" },
-    { nome: "Sede Campestre (lazer)", email: "campestre@sindicatoeducacao.exemplo", telefone: "(43) 0000-0006" },
+    { nome: "Administração Geral", email: "sinpro@sercomtel.com.br", telefone: "(43) 3374-0900" },
+    { nome: "Departamento Jurídico", email: "juridico@sinprolondrina.com.br", telefone: "(43) 3374-0900" },
+    { nome: "Sinpro Especialidades (Saúde)", email: "especialidades@sinprolondrina.com.br", telefone: "(43) 3374-0900" },
+    { nome: "Sinpro Campestre (Lazer)", email: "campestre@sinprolondrina.com.br", telefone: "(43) 3374-0900" },
+    { nome: "Comunicação e Imprensa", email: "comunicacao@sinprolondrina.com.br", telefone: "(43) 3374-0900" },
+    { nome: "Financeiro e Guias Online", email: "financeiro@sinprolondrina.com.br", telefone: "(43) 3374-0900" },
   ],
-  /** SUBSTITUIR POR DADOS REAIS ANTES DA PUBLICAÇÃO */
   numeros: [
-    { valor: "+59", rotulo: "cidades atendidas" },
-    { valor: "+XX", rotulo: "anos de atuação" },
-    { valor: "+XX", rotulo: "associados" },
-    { valor: "+XX", rotulo: "convênios" },
+    { valor: "+59", rotulo: "cidades na base territorial" },
+    { valor: "+30", rotulo: "anos de luta e conquistas" },
+    { valor: "+4.000", rotulo: "profissionais representados" },
+    { valor: "+120", rotulo: "convênios e parcerias" },
   ],
   institucional: {
     missao:
-      "Representar, defender e valorizar professores e funcionários administrativos da rede particular de ensino e dos CEIs filantrópicos, garantindo condições dignas de trabalho.",
+      "Representar, defender e valorizar professores e funcionários da rede particular de ensino e dos Centros de Educação Infantil filantrópicos de Londrina e Norte do Paraná, garantindo piso digno, saúde e qualidade de vida.",
     visao:
-      "Ser referência regional em representação sindical transparente, próxima da categoria e comprometida com a qualidade da educação.",
+      "Ser uma entidade sindical moderna, acolhedora e combativa, referência no Paraná em conquista de direitos trabalhistas, assistência à saúde e integração da categoria.",
     valores: [
-      "Transparência nas contas e nas decisões",
-      "Respeito à diversidade e à dignidade do trabalho",
-      "Diálogo permanente com a categoria",
-      "Defesa firme dos direitos trabalhistas",
-      "Educação como bem público essencial",
+      "Defesa intransigente dos direitos trabalhistas e da dignidade docente",
+      "Transparência financeira e diálogo permanente com a base",
+      "Saúde preventiva e multidisciplinar no Sinpro Especialidades",
+      "Integração e bem-estar das famílias no Sinpro Campestre",
+      "Educação de excelência como direito fundamental da sociedade",
     ],
     historia:
-      "Até meados da década de 1990, docentes da universidade pública e da rede particular eram representados por uma única entidade. Com a separação entre a representação do setor público e do setor privado, um grupo de professoras e professores fundou este sindicato para representar a rede privada e os Centros de Educação Infantil filantrópicos das cidades que compõem a região Norte do Paraná. Desde então, a entidade construiu assessoria jurídica própria, campanha salarial anual, clínica de especialidades e uma sede campestre para associados. (Texto de referência — revise e confirme os dados históricos antes de publicar.)",
+      "O Sinpro Londrina nasceu da mobilização dos professores e professoras do ensino privado e dos Centros de Educação Infantil filantrópicos de Londrina e de toda a região Norte do Paraná. Ao longo de décadas de atuação, o sindicato consolidou convenções coletivas pioneiras, assessoria jurídica ativa e gratuita aos associados, atendimento multidisciplinar na área de saúde (Sinpro Especialidades) e um moderno complexo de lazer na Sede Campestre. Uma história construída lado a lado com os profissionais da educação.",
   },
   reservaLazer: {
-    valorConvidado: "R$ 00,00 por convidado (confirmar valores vigentes)",
+    valorConvidado: "Consultar taxas e normas vigentes na secretaria",
     horarios: "Terça a domingo, das 8h às 22h",
   },
 } as const;
@@ -72,8 +64,8 @@ export const menu = [
   { label: "O Sindicato", to: "/o-sindicato" },
   { label: "Direitos e Acordos", to: "/direitos-e-acordos" },
   { label: "Benefícios", to: "/beneficios" },
-  { label: "Saúde", to: "/saude" },
-  { label: "Lazer", to: "/lazer" },
+  { label: "Saúde (Especialidades)", to: "/saude" },
+  { label: "Lazer (Campestre)", to: "/lazer" },
   { label: "Notícias", to: "/noticias" },
   { label: "Eventos", to: "/eventos" },
   { label: "Contato", to: "/contato" },

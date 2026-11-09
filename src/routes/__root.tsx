@@ -81,14 +81,14 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Sindicato da Educação Regional" },
+      { title: "Sinpro Londrina — Sindicato dos Profissionais da Educação" },
       {
         name: "description",
         content:
           "Sindicato que representa profissionais de escolas particulares e instituições de ensino filantrópicas da região.",
       },
-      { name: "author", content: "Sindicato da Educação Regional" },
-      { property: "og:title", content: "Sindicato da Educação Regional" },
+      { name: "author", content: "Sinpro Londrina" },
+      { property: "og:title", content: "Sinpro Londrina" },
       {
         property: "og:description",
         content: "Informação, defesa e benefícios para quem trabalha na educação.",
