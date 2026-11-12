@@ -68,5 +68,9 @@ export function usePonto() {
     regenerateKioskCode: PontoStore.regenerateKioskCode.bind(PontoStore),
     clearDemoDataOnly: PontoStore.clearDemoDataOnly.bind(PontoStore),
     regenerateDemoData: PontoStore.regenerateDemoData.bind(PontoStore),
+    addEmployee: PontoStore.addEmployee.bind(PontoStore),
+    deleteEmployee: PontoStore.deleteEmployee.bind(PontoStore),
+    adjustPunch: PontoStore.adjustPunch.bind(PontoStore),
+    adjustDayTimes: PontoStore.adjustDayTimes.bind(PontoStore),
   };
 }

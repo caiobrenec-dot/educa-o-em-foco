@@ -64,6 +64,7 @@ export interface Employee {
   pin: string; // 4 dígitos numéricos para o Totem
   defaultScheduleId: string;
   avatar: string; // Foto de referência cadastrada
+  photoUrl: string; // Garantido para compatibilidade total
   hourlyRate: number;
 }
 
@@ -281,6 +282,7 @@ export const INITIAL_EMPLOYEES: Employee[] = [
     pin: "1010",
     defaultScheduleId: "sch-catuai-abertura",
     avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80",
+    photoUrl: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80",
     hourlyRate: 28.5,
   },
   {
@@ -298,6 +300,7 @@ export const INITIAL_EMPLOYEES: Employee[] = [
     pin: "2020",
     defaultScheduleId: "sch-catuai-intermediario",
     avatar: "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150&auto=format&fit=crop&q=80",
+    photoUrl: "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150&auto=format&fit=crop&q=80",
     hourlyRate: 19.8,
   },
   {
@@ -315,6 +318,7 @@ export const INITIAL_EMPLOYEES: Employee[] = [
     pin: "3030",
     defaultScheduleId: "sch-catuai-fechamento",
     avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80",
+    photoUrl: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80",
     hourlyRate: 17.5,
   },
   {
@@ -332,7 +336,26 @@ export const INITIAL_EMPLOYEES: Employee[] = [
     pin: "4040",
     defaultScheduleId: "sch-catuai-abertura",
     avatar: "https://images.unsplash.com/photo-1580489944761-15a19d654956?w=150&auto=format&fit=crop&q=80",
+    photoUrl: "https://images.unsplash.com/photo-1580489944761-15a19d654956?w=150&auto=format&fit=crop&q=80",
     hourlyRate: 16.0,
+  },
+  {
+    id: "emp-9",
+    name: "Murilo Santos (Teste Catuaí)",
+    matricula: "ATH-0105",
+    cpf: "123.456.789-10",
+    email: "murilo.santos@athleta.com.br",
+    phone: "(43) 99111-2222",
+    role: "Vendedor(a) Esportivo",
+    storeId: "store-catuai",
+    admissionDate: "2024-02-01",
+    contractHoursPerWeek: 44,
+    status: "ativo",
+    pin: "1111",
+    defaultScheduleId: "sch-catuai-intermediario",
+    avatar: "https://images.unsplash.com/photo-1492562080023-ab3db95bfbce?w=150&auto=format&fit=crop&q=80",
+    photoUrl: "https://images.unsplash.com/photo-1492562080023-ab3db95bfbce?w=150&auto=format&fit=crop&q=80",
+    hourlyRate: 20.0,
   },
 
   // --- Unidade Boulevard ---
@@ -351,6 +374,7 @@ export const INITIAL_EMPLOYEES: Employee[] = [
     pin: "5050",
     defaultScheduleId: "sch-blv-abertura",
     avatar: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&auto=format&fit=crop&q=80",
+    photoUrl: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&auto=format&fit=crop&q=80",
     hourlyRate: 26.0,
   },
   {
@@ -368,6 +392,7 @@ export const INITIAL_EMPLOYEES: Employee[] = [
     pin: "6060",
     defaultScheduleId: "sch-blv-intermediario",
     avatar: "https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=150&auto=format&fit=crop&q=80",
+    photoUrl: "https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=150&auto=format&fit=crop&q=80",
     hourlyRate: 18.0,
   },
   {
@@ -385,6 +410,7 @@ export const INITIAL_EMPLOYEES: Employee[] = [
     pin: "7070",
     defaultScheduleId: "sch-blv-fechamento",
     avatar: "https://images.unsplash.com/photo-1522075469751-3a6694fb2f61?w=150&auto=format&fit=crop&q=80",
+    photoUrl: "https://images.unsplash.com/photo-1522075469751-3a6694fb2f61?w=150&auto=format&fit=crop&q=80",
     hourlyRate: 17.5,
   },
   {
@@ -402,7 +428,26 @@ export const INITIAL_EMPLOYEES: Employee[] = [
     pin: "8080",
     defaultScheduleId: "sch-blv-abertura",
     avatar: "https://images.unsplash.com/photo-1567532939604-b6b5b0db2604?w=150&auto=format&fit=crop&q=80",
+    photoUrl: "https://images.unsplash.com/photo-1567532939604-b6b5b0db2604?w=150&auto=format&fit=crop&q=80",
     hourlyRate: 16.0,
+  },
+  {
+    id: "emp-10",
+    name: "Lucas Teste (Boulevard)",
+    matricula: "ATH-0205",
+    cpf: "987.654.321-00",
+    email: "lucas.teste@athleta.com.br",
+    phone: "(43) 99333-4444",
+    role: "Vendedor(a) Esportivo",
+    storeId: "store-boulevard",
+    admissionDate: "2024-05-01",
+    contractHoursPerWeek: 44,
+    status: "ativo",
+    pin: "2222",
+    defaultScheduleId: "sch-blv-intermediario",
+    avatar: "https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=150&auto=format&fit=crop&q=80",
+    photoUrl: "https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=150&auto=format&fit=crop&q=80",
+    hourlyRate: 20.0,
   },
 ];
 
@@ -1158,8 +1203,33 @@ export class PontoStore {
         return INITIAL_EMPLOYEES;
       }
       const parsed: Employee[] = JSON.parse(data);
-      // Filtra apenas Catuaí e Boulevard
-      return parsed.filter((e) => e.storeId === "store-catuai" || e.storeId === "store-boulevard");
+      // Garante que novos funcionários de teste em INITIAL_EMPLOYEES sejam incorporados
+      const existingIds = new Set(parsed.map((e) => e.id));
+      let hadNew = false;
+      INITIAL_EMPLOYEES.forEach((initEmp) => {
+        if (!existingIds.has(initEmp.id)) {
+          parsed.push(initEmp);
+          hadNew = true;
+        }
+      });
+      if (hadNew) {
+        localStorage.setItem(STORAGE_KEYS.EMPLOYEES, JSON.stringify(parsed));
+      }
+
+      // Filtra apenas Catuaí e Boulevard e garante photoUrl
+      return parsed
+        .filter((e) => e.storeId === "store-catuai" || e.storeId === "store-boulevard")
+        .map((e) => ({
+          ...e,
+          avatar:
+            e.avatar ||
+            e.photoUrl ||
+            "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80",
+          photoUrl:
+            e.photoUrl ||
+            e.avatar ||
+            "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80",
+        }));
     } catch {
       return INITIAL_EMPLOYEES;
     }
@@ -1169,6 +1239,112 @@ export class PontoStore {
     if (typeof window === "undefined") return;
     localStorage.setItem(STORAGE_KEYS.EMPLOYEES, JSON.stringify(employees));
     this.notify();
+  }
+
+  public static addEmployee(emp: {
+    name: string;
+    storeId: "store-catuai" | "store-boulevard";
+    role?: RoleType;
+    cpf?: string;
+    email?: string;
+    phone?: string;
+    hourlyRate?: number;
+    avatar?: string;
+    photoUrl?: string;
+    defaultScheduleId?: string;
+    pin?: string;
+    contractHoursPerWeek?: number;
+    admissionDate?: string;
+  }): Employee {
+    const employees = this.getEmployees();
+    const id = `emp-${Date.now()}`;
+    const cleanName = emp.name.trim();
+
+    const randomAvatars = [
+      "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80",
+      "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80",
+      "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&auto=format&fit=crop&q=80",
+      "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&auto=format&fit=crop&q=80",
+      "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150&auto=format&fit=crop&q=80",
+      "https://images.unsplash.com/photo-1580489944761-15a19d654956?w=150&auto=format&fit=crop&q=80",
+      "https://images.unsplash.com/photo-1522075469751-3a6694fb2f61?w=150&auto=format&fit=crop&q=80",
+      "https://images.unsplash.com/photo-1567532939604-b6b5b0db2604?w=150&auto=format&fit=crop&q=80",
+      "https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=150&auto=format&fit=crop&q=80",
+      "https://images.unsplash.com/photo-1492562080023-ab3db95bfbce?w=150&auto=format&fit=crop&q=80",
+    ];
+    const chosenPhoto =
+      emp.photoUrl ||
+      emp.avatar ||
+      randomAvatars[Math.floor(Math.random() * randomAvatars.length)];
+
+    const randomDigits = Math.floor(1000 + Math.random() * 9000);
+    const matricula = `ATH-${randomDigits}`;
+    const cleanSlug = cleanName
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-z0-9]/g, ".");
+
+    const newEmp: Employee = {
+      id,
+      name: cleanName,
+      matricula,
+      cpf:
+        emp.cpf?.trim() ||
+        `${Math.floor(100 + Math.random() * 900)}.${Math.floor(100 + Math.random() * 900)}.${Math.floor(100 + Math.random() * 900)}-00`,
+      email: emp.email?.trim() || `${cleanSlug}@athleta.com.br`,
+      phone: emp.phone?.trim() || "(43) 99000-0000",
+      role: emp.role || "Vendedor(a) Esportivo",
+      storeId: emp.storeId,
+      admissionDate: emp.admissionDate || new Date().toISOString().split("T")[0],
+      contractHoursPerWeek: emp.contractHoursPerWeek || 44,
+      status: "ativo",
+      pin: emp.pin || "1234",
+      defaultScheduleId:
+        emp.defaultScheduleId ||
+        (emp.storeId === "store-catuai" ? "sch-catuai-abertura" : "sch-blv-abertura"),
+      avatar: chosenPhoto,
+      photoUrl: chosenPhoto,
+      hourlyRate: emp.hourlyRate || 19.5,
+    };
+
+    employees.push(newEmp);
+    this.saveEmployees(employees);
+
+    this.addAuditLog({
+      actionType: "novo_funcionario",
+      title: `Novo colaborador cadastrado: ${newEmp.name}`,
+      details: `Cadastrado na unidade ${
+        newEmp.storeId === "store-catuai" ? "Shopping Catuaí" : "Shopping Boulevard"
+      }.`,
+      employeeId: newEmp.id,
+      employeeName: newEmp.name,
+      storeId: newEmp.storeId,
+      authorName: "ADM TOTAL (Proprietário)",
+    });
+
+    return newEmp;
+  }
+
+  public static deleteEmployee(id: string): boolean {
+    let employees = this.getEmployees();
+    const emp = employees.find((e) => e.id === id);
+    if (!emp) return false;
+
+    employees = employees.filter((e) => e.id !== id);
+    this.saveEmployees(employees);
+
+    this.addAuditLog({
+      actionType: "editar_funcionario",
+      title: `Colaborador removido: ${emp.name}`,
+      details: `Cadastro desativado e removido pelo administrador.`,
+      employeeId: emp.id,
+      employeeName: emp.name,
+      storeId: emp.storeId,
+      authorName: "ADM TOTAL (Proprietário)",
+    });
+
+    return true;
   }
 
   public static updateEmployee(id: string, updates: Partial<Employee>): Employee | null {
@@ -1560,6 +1736,241 @@ export class PontoStore {
 
     // Ordena mais recentes primeiro
     return list.sort((a, b) => b.punch.timestamp.localeCompare(a.punch.timestamp));
+  }
+
+  // --- AJUSTE MANUAL DE MARCAÇÃO ESPECÍFICA ---
+  public static adjustPunch(params: {
+    recordId: string;
+    punchId: string;
+    newTime: string;
+    reason: string;
+    authorName: string;
+  }): boolean {
+    const records = this.getDayRecords();
+    const record = records.find((r) => r.id === params.recordId);
+    if (!record) return false;
+
+    const punch = record.punches.find((p) => p.id === params.punchId);
+    if (!punch) return false;
+
+    const oldTime = punch.time;
+    punch.time = params.newTime;
+    punch.isManualAdjustment = true;
+    punch.adjustmentReason = params.reason;
+    punch.adjustedBy = params.authorName;
+    punch.adjustedAt = new Date().toISOString();
+
+    this.recalculateRecordStatus(record);
+    this.saveDayRecords(records);
+
+    const emp = this.getEmployees().find((e) => e.id === record.employeeId);
+
+    this.addAuditLog({
+      actionType: "ajuste_ponto",
+      title: `Ajuste manual de marcação: ${emp?.name || "Colaborador"}`,
+      details: `Marcação alterada de ${oldTime} para ${params.newTime}. Motivo: ${params.reason}`,
+      employeeId: record.employeeId,
+      employeeName: emp?.name,
+      storeId: record.storeId,
+      authorName: params.authorName,
+      previousValue: oldTime,
+      newValue: params.newTime,
+    });
+
+    return true;
+  }
+
+  // --- AJUSTE MANUAL COMPLETO DOS HORÁRIOS DO DIA (MUDAR HORÁRIOS / FAZER MAIS OU MENOS) ---
+  public static adjustDayTimes(params: {
+    employeeId: string;
+    date: string;
+    scheduledEntry?: string;
+    scheduledExit?: string;
+    entryTime?: string;
+    breakStartTime?: string;
+    breakEndTime?: string;
+    exitTime?: string;
+    isDayOff?: boolean;
+    reason?: string;
+    authorName?: string;
+  }): DayTimeRecord {
+    const records = this.getDayRecords();
+    const employees = this.getEmployees();
+    const emp = employees.find((e) => e.id === params.employeeId);
+    const storeId = emp?.storeId || "store-catuai";
+
+    let record = records.find((r) => r.employeeId === params.employeeId && r.date === params.date);
+
+    if (!record) {
+      record = {
+        id: `rec-${params.employeeId}-${params.date}`,
+        employeeId: params.employeeId,
+        storeId,
+        date: params.date,
+        dayOfWeek: new Date(params.date + "T12:00:00").getDay(),
+        punches: [],
+        scheduledEntry: params.scheduledEntry || "09:45",
+        scheduledExit: params.scheduledExit || "18:05",
+        scheduledBreak: "13:30 - 14:30",
+        isDayOff: !!params.isDayOff,
+        isVacationOrLeave: false,
+        status: params.isDayOff ? "folga" : "presente",
+        totalWorkedMinutes: 0,
+        expectedWorkedMinutes: 440,
+        balanceMinutes: 0,
+        delayMinutes: 0,
+        extraMinutes: 0,
+        earlyExitMinutes: 0,
+      };
+      records.push(record);
+    }
+
+    if (params.scheduledEntry) record.scheduledEntry = params.scheduledEntry;
+    if (params.scheduledExit) record.scheduledExit = params.scheduledExit;
+    if (params.isDayOff !== undefined) record.isDayOff = params.isDayOff;
+
+    if (params.isDayOff) {
+      record.punches = [];
+      record.status = "folga";
+      record.totalWorkedMinutes = 0;
+      record.balanceMinutes = 0;
+      record.delayMinutes = 0;
+      record.extraMinutes = 0;
+    } else {
+      const entryT = params.entryTime || record.scheduledEntry || "09:45";
+      const bStartT = params.breakStartTime || "13:30";
+      const bEndT = params.breakEndTime || "14:30";
+      const exitT = params.exitTime || record.scheduledExit || "18:05";
+
+      const photoUrl =
+        emp?.photoUrl ||
+        emp?.avatar ||
+        "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80";
+
+      // Atualiza ou cria as 4 marcações do dia
+      record.punches = [
+        {
+          id: `p-${params.date}-1`,
+          type: "entrada",
+          timestamp: `${params.date}T${entryT}:00.000Z`,
+          time: entryT,
+          photoUrl,
+          location: {
+            latitude: -23.3421,
+            longitude: -51.1872,
+            accuracy: 5,
+            address: storeId === "store-catuai" ? "Shopping Catuaí" : "Shopping Boulevard",
+            inRange: true,
+          },
+          device: { type: "Totem Quiosque Tablet", ip: "192.168.1.100", userAgent: "Athleta/2.0" },
+          nsr: 100000 + Math.floor(Math.random() * 900000),
+          hash: `sha256-man-${Date.now()}-1`,
+          isManualAdjustment: true,
+          adjustmentReason: params.reason || "Ajuste manual de escala/horário",
+          adjustedBy: params.authorName || "ADM TOTAL",
+          adjustedAt: new Date().toISOString(),
+        },
+        {
+          id: `p-${params.date}-2`,
+          type: "intervalo_saida",
+          timestamp: `${params.date}T${bStartT}:00.000Z`,
+          time: bStartT,
+          photoUrl,
+          location: {
+            latitude: -23.3421,
+            longitude: -51.1872,
+            accuracy: 5,
+            address: storeId === "store-catuai" ? "Shopping Catuaí" : "Shopping Boulevard",
+            inRange: true,
+          },
+          device: { type: "Totem Quiosque Tablet", ip: "192.168.1.100", userAgent: "Athleta/2.0" },
+          nsr: 100000 + Math.floor(Math.random() * 900000),
+          hash: `sha256-man-${Date.now()}-2`,
+          isManualAdjustment: true,
+          adjustmentReason: params.reason || "Ajuste manual de escala/horário",
+          adjustedBy: params.authorName || "ADM TOTAL",
+          adjustedAt: new Date().toISOString(),
+        },
+        {
+          id: `p-${params.date}-3`,
+          type: "intervalo_retorno",
+          timestamp: `${params.date}T${bEndT}:00.000Z`,
+          time: bEndT,
+          photoUrl,
+          location: {
+            latitude: -23.3421,
+            longitude: -51.1872,
+            accuracy: 5,
+            address: storeId === "store-catuai" ? "Shopping Catuaí" : "Shopping Boulevard",
+            inRange: true,
+          },
+          device: { type: "Totem Quiosque Tablet", ip: "192.168.1.100", userAgent: "Athleta/2.0" },
+          nsr: 100000 + Math.floor(Math.random() * 900000),
+          hash: `sha256-man-${Date.now()}-3`,
+          isManualAdjustment: true,
+          adjustmentReason: params.reason || "Ajuste manual de escala/horário",
+          adjustedBy: params.authorName || "ADM TOTAL",
+          adjustedAt: new Date().toISOString(),
+        },
+        {
+          id: `p-${params.date}-4`,
+          type: "saida",
+          timestamp: `${params.date}T${exitT}:00.000Z`,
+          time: exitT,
+          photoUrl,
+          location: {
+            latitude: -23.3421,
+            longitude: -51.1872,
+            accuracy: 5,
+            address: storeId === "store-catuai" ? "Shopping Catuaí" : "Shopping Boulevard",
+            inRange: true,
+          },
+          device: { type: "Totem Quiosque Tablet", ip: "192.168.1.100", userAgent: "Athleta/2.0" },
+          nsr: 100000 + Math.floor(Math.random() * 900000),
+          hash: `sha256-man-${Date.now()}-4`,
+          isManualAdjustment: true,
+          adjustmentReason: params.reason || "Ajuste manual de escala/horário",
+          adjustedBy: params.authorName || "ADM TOTAL",
+          adjustedAt: new Date().toISOString(),
+        },
+      ];
+
+      this.recalculateRecordStatus(record);
+    }
+
+    this.saveDayRecords(records);
+
+    // Registra movimentação no banco de horas se gerou crédito/débito
+    if (record.balanceMinutes !== 0) {
+      const summary = this.getEmployeeBankSummary(params.employeeId);
+      const bankList = this.getBankOfHoursEntries();
+      bankList.push({
+        id: `bkh-adj-${Date.now()}`,
+        employeeId: params.employeeId,
+        storeId,
+        date: params.date,
+        type: record.balanceMinutes > 0 ? "credito" : "debito",
+        minutes: Math.abs(record.balanceMinutes),
+        balanceAfterMinutes: summary.currentBalanceMinutes + record.balanceMinutes,
+        reason: params.reason || `Ajuste de horário trabalhado no dia ${params.date}`,
+        author: params.authorName || "ADM TOTAL",
+        isManualAdjustment: true,
+        createdAt: new Date().toISOString(),
+      });
+      this.saveBankOfHoursEntries(bankList);
+    }
+
+    this.addAuditLog({
+      actionType: "ajuste_ponto",
+      title: `Horário de jornada alterado: ${emp?.name || "Colaborador"}`,
+      details: `Data: ${params.date} | Entrada: ${params.entryTime || "prevista"} | Saída: ${params.exitTime || "prevista"} | Motivo: ${params.reason || "Ajuste de jornada"}`,
+      employeeId: params.employeeId,
+      employeeName: emp?.name,
+      storeId,
+      authorName: params.authorName || "ADM TOTAL (Proprietário)",
+    });
+
+    return record;
   }
 
   // --- LIMPEZA DE BASE DE DEMONSTRAÇÃO (SEM APAGAR CADASTROS REAIS) ---

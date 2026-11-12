@@ -21,9 +21,10 @@ const storeCode = fs.readFileSync(path.join(__dirname, '../lib/ponto-store.ts'),
 
 const requiredMethods = [
   'getStores',
-  'addStore',
   'getEmployees',
   'addEmployee',
+  'deleteEmployee',
+  'adjustDayTimes',
   'updateEmployee',
   'getDayRecords',
   'recordPunch',

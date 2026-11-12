@@ -23,6 +23,7 @@ import {
   Info,
 } from "lucide-react";
 import { toast } from "sonner";
+import { AdjustHoursModal } from "./AdjustHoursModal";
 
 interface DayDetailsModalProps {
   record: DayTimeRecord | null;
@@ -40,6 +41,7 @@ export function DayDetailsModal({
   const [newTime, setNewTime] = useState("");
   const [adjustmentReason, setAdjustmentReason] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isAdjustModalOpen, setIsAdjustModalOpen] = useState(false);
 
   if (!record || !employee) return null;
 
@@ -112,7 +114,7 @@ export function DayDetailsModal({
             </div>
           </div>
 
-          {/* Resumo da Jornada */}
+          {/* Resumo da Jornada e Ação de Ajuste Rápido */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-4 text-xs bg-black/20 p-2.5 rounded-xl border border-white/10">
             <div>
               <span className="text-white/60 block text-[10px] uppercase">Previsto Escala</span>
@@ -141,6 +143,19 @@ export function DayDetailsModal({
               </span>
             </div>
           </div>
+
+          <div className="mt-3 flex items-center justify-between flex-wrap gap-2 pt-2 border-t border-white/10">
+            <span className="text-[11px] text-white/70">
+              Precisa alterar horários deste dia (fazer mais ou menos horas)?
+            </span>
+            <button
+              onClick={() => setIsAdjustModalOpen(true)}
+              className="px-3.5 py-1.5 rounded-xl bg-[#FFC72C] hover:bg-[#e6b325] text-[#004724] font-black text-xs shadow-md transition-all flex items-center gap-1.5"
+            >
+              <Clock className="w-3.5 h-3.5" />
+              Ajustar Todos os Horários Deste Dia
+            </button>
+          </div>
         </div>
 
         {/* Lista de Marcações com Fotos e Detalhes */}
@@ -160,6 +175,14 @@ export function DayDetailsModal({
                 <p className="text-xs text-slate-400 mt-0.5">
                   {record.isDayOff ? "DSR conforme escala cadastrada." : "Falta ou ausência de marcação no totem."}
                 </p>
+                <button
+                  type="button"
+                  onClick={() => setIsAdjustModalOpen(true)}
+                  className="mt-3 px-4 py-2 rounded-xl bg-[#005C30] hover:bg-[#004724] text-white text-xs font-bold shadow-md transition-all inline-flex items-center gap-1.5"
+                >
+                  <Clock className="w-3.5 h-3.5 text-[#FFC72C]" />
+                  Lançar / Ajustar Horários Deste Dia
+                </button>
               </div>
             ) : (
               <div className="space-y-4">
@@ -323,6 +346,14 @@ export function DayDetailsModal({
           </div>
         </div>
       </div>
+
+      {isAdjustModalOpen && (
+        <AdjustHoursModal
+          defaultEmployeeId={employee.id}
+          defaultDate={record.date}
+          onClose={() => setIsAdjustModalOpen(false)}
+        />
+      )}
     </div>
   );
 }

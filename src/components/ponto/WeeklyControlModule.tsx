@@ -24,6 +24,7 @@ import {
   CalendarDays,
   FileSpreadsheet,
 } from "lucide-react";
+import { AdjustHoursModal } from "./AdjustHoursModal";
 
 interface WeeklyControlModuleProps {
   onSelectEmployee: (emp: Employee) => void;
@@ -45,6 +46,7 @@ export function WeeklyControlModule({
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [employeeFilter, setEmployeeFilter] = useState<string>("all");
+  const [isAdjustModalOpen, setIsAdjustModalOpen] = useState(false);
 
   // Semanas calculadas (Segunda a Domingo)
   const currentWeekDays = useMemo(() => {
@@ -193,6 +195,14 @@ export function WeeklyControlModule({
                 Semana: {weekStartStr} até {weekEndStr}
               </span>
             </div>
+
+            <button
+              onClick={() => setIsAdjustModalOpen(true)}
+              className="px-3.5 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs shadow-sm transition-all flex items-center gap-1.5"
+            >
+              <Clock className="w-3.5 h-3.5" />
+              Ajustar Horários
+            </button>
           </div>
 
           {/* Legenda Discreta de Cores */}
@@ -480,6 +490,10 @@ export function WeeklyControlModule({
           </span>
         </div>
       </div>
+
+      {isAdjustModalOpen && (
+        <AdjustHoursModal onClose={() => setIsAdjustModalOpen(false)} />
+      )}
     </div>
   );
 }

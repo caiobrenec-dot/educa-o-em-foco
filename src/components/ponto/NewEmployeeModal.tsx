@@ -1,74 +1,66 @@
 import React, { useState } from "react";
-import { Employee, RoleType, Store } from "../../lib/ponto-store";
 import { usePonto } from "../../hooks/use-ponto";
-import { X, UserPlus, Building2, ShieldCheck, Mail, Phone, User, Clock } from "lucide-react";
+import { X, UserPlus, Building2, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
 
 interface NewEmployeeModalProps {
   onClose: () => void;
+  defaultStoreId?: string;
 }
 
-export function NewEmployeeModal({ onClose }: NewEmployeeModalProps) {
-  const { stores, schedules, addEmployee } = usePonto();
+export function NewEmployeeModal({ onClose, defaultStoreId = "store-catuai" }: NewEmployeeModalProps) {
+  const { addEmployee } = usePonto();
 
   const [name, setName] = useState("");
-  const [cpf, setCpf] = useState("");
-  const [matricula, setMatricula] = useState(`ATH-${Math.floor(1000 + Math.random() * 9000)}`);
-  const [email, setEmail] = useState("");
-  const [phone, setPhone] = useState("");
-  const [role, setRole] = useState<RoleType>("Vendedor(a) Esportivo");
-  const [storeId, setStoreId] = useState<string>(stores[0]?.id || "store-catuai");
-  const [defaultScheduleId, setDefaultScheduleId] = useState<string>(schedules[0]?.id || "sch-shopping-abertura");
-  const [contractHoursPerWeek, setContractHoursPerWeek] = useState(44);
-  const [pin, setPin] = useState("1234");
-  const [hourlyRate, setHourlyRate] = useState(18.0);
-  const [avatar, setAvatar] = useState(
-    "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80"
+  const [storeId, setStoreId] = useState<"store-catuai" | "store-boulevard">(
+    defaultStoreId === "store-boulevard" ? "store-boulevard" : "store-catuai"
   );
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name.trim() || !cpf.trim()) {
-      toast.error("Nome e CPF são obrigatórios.");
+    if (!name.trim()) {
+      toast.error("Por favor, digite o nome do funcionário.");
       return;
     }
 
-    addEmployee({
-      name: name.trim(),
-      cpf: cpf.trim(),
-      matricula: matricula.trim(),
-      email: email.trim() || `${name.toLowerCase().replace(/\s+/g, ".")}@athleta.com.br`,
-      phone: phone.trim() || "(43) 99000-0000",
-      role,
-      storeId,
-      admissionDate: new Date().toISOString().split("T")[0],
-      contractHoursPerWeek,
-      status: "ativo",
-      pin: pin.trim() || "1234",
-      defaultScheduleId,
-      avatar,
-      hourlyRate,
-    });
+    setIsSubmitting(true);
+    try {
+      const created = addEmployee({
+        name: name.trim(),
+        storeId,
+      });
 
-    toast.success(`Funcionário ${name} cadastrado com sucesso!`);
-    onClose();
+      toast.success(
+        `Funcionário "${created.name}" cadastrado com sucesso no ${
+          storeId === "store-catuai" ? "Shopping Catuaí" : "Shopping Boulevard"
+        }!`
+      );
+      onClose();
+    } catch (err) {
+      console.error("Erro ao adicionar funcionário:", err);
+      toast.error("Erro ao cadastrar funcionário. Tente novamente.");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 md:p-6 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="relative w-full max-w-2xl bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-200">
+      <div className="relative w-full max-w-md bg-white rounded-3xl shadow-2xl border border-slate-100 overflow-hidden">
         {/* Header */}
         <div className="bg-[#005C30] text-white p-5 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-[#FFC72C] text-[#004724] flex items-center justify-center font-bold">
+            <div className="w-10 h-10 rounded-2xl bg-[#FFC72C] text-[#004724] flex items-center justify-center font-bold shadow-xs">
               <UserPlus className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="text-lg font-bold text-white">Cadastrar Novo Colaborador</h3>
-              <p className="text-xs text-white/80">Integração imediata com o Totem Quiosque e Escalas</p>
+              <h3 className="text-base font-black text-white">Novo Funcionário</h3>
+              <p className="text-xs text-white/80">Informe apenas o nome e o shopping</p>
             </div>
           </div>
           <button
+            type="button"
             onClick={onClose}
             className="p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors"
           >
@@ -76,158 +68,82 @@ export function NewEmployeeModal({ onClose }: NewEmployeeModalProps) {
           </button>
         </div>
 
-        {/* Formulário */}
-        <form onSubmit={handleSubmit} className="p-5 md:p-6 space-y-4 text-xs">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label className="text-[10px] font-bold text-slate-600 uppercase block mb-1">
-                Nome Completo *
-              </label>
-              <input
-                type="text"
-                required
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="Ex: Gabriel Souza Santos"
-                className="w-full p-2.5 bg-slate-50 border rounded-xl text-sm"
-              />
-            </div>
+        {/* Formulário Simplificado (Apenas Nome e Shopping) */}
+        <form onSubmit={handleSubmit} className="p-6 space-y-5 text-xs">
+          {/* 1. Nome do Funcionário */}
+          <div>
+            <label className="text-xs font-bold text-slate-700 uppercase tracking-wider block mb-1.5">
+              Nome do Funcionário *
+            </label>
+            <input
+              type="text"
+              required
+              autoFocus
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Ex: Murilo Santos"
+              className="w-full p-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold text-slate-900 placeholder:text-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#005C30]/20"
+            />
+          </div>
 
-            <div>
-              <label className="text-[10px] font-bold text-slate-600 uppercase block mb-1">
-                CPF *
-              </label>
-              <input
-                type="text"
-                required
-                value={cpf}
-                onChange={(e) => setCpf(e.target.value)}
-                placeholder="000.000.000-00"
-                className="w-full p-2.5 bg-slate-50 border rounded-xl text-sm font-mono"
-              />
-            </div>
-
-            <div>
-              <label className="text-[10px] font-bold text-slate-600 uppercase block mb-1">
-                Cargo / Função
-              </label>
-              <select
-                value={role}
-                onChange={(e) => setRole(e.target.value as RoleType)}
-                className="w-full p-2.5 bg-slate-50 border rounded-xl text-xs font-semibold"
+          {/* 2. Seleção do Shopping (Catuaí ou Boulevard) */}
+          <div>
+            <label className="text-xs font-bold text-slate-700 uppercase tracking-wider block mb-1.5">
+              Shopping / Unidade *
+            </label>
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={() => setStoreId("store-catuai")}
+                className={`p-3.5 rounded-2xl border-2 text-left transition-all flex flex-col justify-between ${
+                  storeId === "store-catuai"
+                    ? "border-[#005C30] bg-[#005C30]/5 text-[#005C30] shadow-sm"
+                    : "border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100"
+                }`}
               >
-                <option value="Gerente Geral">Gerente Geral</option>
-                <option value="Gerente de Loja">Gerente de Loja</option>
-                <option value="Subgerente">Subgerente</option>
-                <option value="Vendedor(a) Líder">Vendedor(a) Líder</option>
-                <option value="Vendedor(a) Esportivo">Vendedor(a) Esportivo</option>
-                <option value="Consultor(a) de Vendas">Consultor(a) de Vendas</option>
-                <option value="Operador(a) de Caixa">Operador(a) de Caixa</option>
-                <option value="Estoquista">Estoquista</option>
-                <option value="Auxiliar de Loja">Auxiliar de Loja</option>
-              </select>
-            </div>
+                <div className="flex items-center justify-between mb-2">
+                  <Building2 className={`w-5 h-5 ${storeId === "store-catuai" ? "text-[#005C30]" : "text-slate-400"}`} />
+                  {storeId === "store-catuai" && <CheckCircle2 className="w-4 h-4 text-[#005C30]" />}
+                </div>
+                <span className="font-black text-sm block">Shopping Catuaí</span>
+                <span className="text-[10px] text-slate-400">Londrina - PR</span>
+              </button>
 
-            <div>
-              <label className="text-[10px] font-bold text-slate-600 uppercase block mb-1">
-                Unidade / Loja Vinculada
-              </label>
-              <select
-                value={storeId}
-                onChange={(e) => setStoreId(e.target.value)}
-                className="w-full p-2.5 bg-slate-50 border rounded-xl text-xs font-semibold"
+              <button
+                type="button"
+                onClick={() => setStoreId("store-boulevard")}
+                className={`p-3.5 rounded-2xl border-2 text-left transition-all flex flex-col justify-between ${
+                  storeId === "store-boulevard"
+                    ? "border-[#005C30] bg-[#005C30]/5 text-[#005C30] shadow-sm"
+                    : "border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100"
+                }`}
               >
-                {stores.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.name} ({s.city})
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="text-[10px] font-bold text-slate-600 uppercase block mb-1">
-                PIN de Acesso ao Totem Quiosque (4 Dígitos) *
-              </label>
-              <input
-                type="text"
-                required
-                maxLength={6}
-                value={pin}
-                onChange={(e) => setPin(e.target.value)}
-                className="w-full p-2.5 bg-slate-50 border rounded-xl text-sm font-mono font-bold tracking-widest text-[#005C30]"
-              />
-            </div>
-
-            <div>
-              <label className="text-[10px] font-bold text-slate-600 uppercase block mb-1">
-                Matrícula Interna
-              </label>
-              <input
-                type="text"
-                value={matricula}
-                onChange={(e) => setMatricula(e.target.value)}
-                className="w-full p-2.5 bg-slate-50 border rounded-xl text-xs font-mono"
-              />
-            </div>
-
-            <div>
-              <label className="text-[10px] font-bold text-slate-600 uppercase block mb-1">
-                E-mail Corporativo
-              </label>
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="nome@athleta.com.br"
-                className="w-full p-2.5 bg-slate-50 border rounded-xl text-xs"
-              />
-            </div>
-
-            <div>
-              <label className="text-[10px] font-bold text-slate-600 uppercase block mb-1">
-                Telefone / WhatsApp
-              </label>
-              <input
-                type="tel"
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                placeholder="(43) 99999-9999"
-                className="w-full p-2.5 bg-slate-50 border rounded-xl text-xs"
-              />
-            </div>
-
-            <div className="sm:col-span-2">
-              <label className="text-[10px] font-bold text-slate-600 uppercase block mb-1">
-                Escala Padrão Inicial
-              </label>
-              <select
-                value={defaultScheduleId}
-                onChange={(e) => setDefaultScheduleId(e.target.value)}
-                className="w-full p-2.5 bg-slate-50 border rounded-xl text-xs font-semibold"
-              >
-                {schedules.map((sch) => (
-                  <option key={sch.id} value={sch.id}>
-                    {sch.name} — {sch.entryTime} às {sch.exitTime} (Carga: {sch.weeklyHours}h)
-                  </option>
-                ))}
-              </select>
+                <div className="flex items-center justify-between mb-2">
+                  <Building2 className={`w-5 h-5 ${storeId === "store-boulevard" ? "text-[#005C30]" : "text-slate-400"}`} />
+                  {storeId === "store-boulevard" && <CheckCircle2 className="w-4 h-4 text-[#005C30]" />}
+                </div>
+                <span className="font-black text-sm block">Shopping Boulevard</span>
+                <span className="text-[10px] text-slate-400">Londrina - PR</span>
+              </button>
             </div>
           </div>
 
-          <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100">
+          {/* Botão de Envio */}
+          <div className="pt-3 flex items-center justify-end gap-3">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 rounded-xl text-slate-600 font-bold hover:bg-slate-100 transition-colors"
+              className="px-4 py-2.5 rounded-xl border border-slate-200 text-slate-600 font-bold text-xs hover:bg-slate-50 transition-colors"
             >
               Cancelar
             </button>
             <button
               type="submit"
-              className="px-5 py-2.5 rounded-xl bg-[#005C30] hover:bg-[#004724] text-white font-bold transition-all shadow-md"
+              disabled={isSubmitting}
+              className="px-6 py-2.5 rounded-xl bg-[#005C30] hover:bg-[#004724] active:scale-95 text-white font-bold text-xs shadow-md transition-all flex items-center gap-2"
             >
-              Salvar Colaborador
+              <UserPlus className="w-4 h-4 text-[#FFC72C]" />
+              {isSubmitting ? "Cadastrando..." : "Cadastrar Funcionário"}
             </button>
           </div>
         </form>
