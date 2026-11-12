@@ -4,6 +4,8 @@
  * Lojas Oficiais: Athleta Shopping Catuaí e Athleta Shopping Boulevard.
  */
 
+import { generateDemoBiometricSelfie } from "./facial-biometrics";
+
 export type RoleType =
   | "Gerente Geral"
   | "Gerente de Loja"
@@ -571,8 +573,23 @@ export function formatMinutesHuman(totalMinutes: number): string {
   return `${sign}${h}h ${String(m).padStart(2, "0")}m`;
 }
 
+// Retorna a data local (YYYY-MM-DD) sem distorção de fuso horário UTC
+export function getLocalDateStr(date: Date = new Date()): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+// Retorna o horário local (HH:mm)
+export function getLocalTimeStr(date: Date = new Date()): string {
+  const hours = String(date.getHours()).padStart(2, "0");
+  const minutes = String(date.getMinutes()).padStart(2, "0");
+  return `${hours}:${minutes}`;
+}
+
 // Retorna as datas da semana (Segunda a Domingo)
-export function getWeekDates(referenceDate: Date = new Date("2026-11-11T12:00:00")): {
+export function getWeekDates(referenceDate: Date = new Date()): {
   date: string;
   dayOfWeek: number;
   dayName: string;
@@ -589,7 +606,7 @@ export function getWeekDates(referenceDate: Date = new Date("2026-11-11T12:00:00
   for (let i = 0; i < 7; i++) {
     const nextDate = new Date(monday);
     nextDate.setDate(monday.getDate() + i);
-    const dateStr = nextDate.toISOString().split("T")[0];
+    const dateStr = getLocalDateStr(nextDate);
     const jsDayOfWeek = nextDate.getDay();
     week.push({
       date: dateStr,
@@ -602,30 +619,30 @@ export function getWeekDates(referenceDate: Date = new Date("2026-11-11T12:00:00
   return week;
 }
 
-// Gera foto facial de demonstração estilizada com selo DEMO e dados do registro
-export function generateDemoSelfie(name: string, role: string, initials: string, time: string, storeCode: string): string {
-  const storeLabel = storeCode === "store-catuai" ? "CATUAÍ" : "BOULEVARD";
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="360" height="360" viewBox="0 0 360 360">
-    <defs>
-      <linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="100%">
-        <stop offset="0%" stop-color="#005C30" />
-        <stop offset="100%" stop-color="#002914" />
-      </linearGradient>
-    </defs>
-    <rect width="360" height="360" fill="url(#g)" rx="20" />
-    <circle cx="180" cy="135" r="55" fill="#FFC72C" fill-opacity="0.9" />
-    <path d="M100 270 C100 215, 260 215, 260 270 Z" fill="#FFC72C" fill-opacity="0.9" />
-    <text x="180" y="145" font-family="'Plus Jakarta Sans', Arial, sans-serif" font-size="32" font-weight="900" fill="#00361C" text-anchor="middle">${initials}</text>
-    
-    <rect x="25" y="280" width="310" height="60" rx="12" fill="#000000" fill-opacity="0.7" />
-    <text x="180" y="303" font-family="Arial, sans-serif" font-size="13" font-weight="bold" fill="#FFFFFF" text-anchor="middle">${name.split(' ').slice(0, 2).join(' ')}</text>
-    <text x="180" y="322" font-family="monospace" font-size="11" font-weight="bold" fill="#FFC72C" text-anchor="middle">${storeLabel} • ${time} • GPS OK</text>
-    
-    <rect x="25" y="20" width="160" height="26" rx="6" fill="#FFC72C" />
-    <text x="105" y="37" font-family="Arial, sans-serif" font-size="10" font-weight="900" fill="#004724" text-anchor="middle">DEMO • CAPTURA AO VIVO</text>
-    <circle cx="325" cy="33" r="8" fill="#10B981" />
-  </svg>`;
-  return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
+// Gera foto facial de demonstração estilizada com estudo biométrico facial real
+export function generateDemoSelfie(
+  name: string,
+  role: string,
+  initials: string,
+  time: string,
+  storeCode: string,
+  punchType: PunchType = "entrada"
+): string {
+  // Procura o colaborador correspondente para usar sua foto real cadastrada
+  const emp = INITIAL_EMPLOYEES.find(
+    (e) => e.name === name || e.name.toLowerCase().includes((name || "").split(" ")[0].toLowerCase())
+  ) || {
+    id: "emp-demo",
+    name,
+    role,
+    avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=500&auto=format&fit=crop&q=80",
+    photoUrl: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=500&auto=format&fit=crop&q=80",
+    storeId: storeCode as "store-catuai" | "store-boulevard",
+    matricula: "ATH-0100",
+  } as Employee;
+
+  // Importa e gera a foto de biometria facial completa (com 68 marcos, scan HUD e selo Portaria 671 MTE)
+  return generateDemoBiometricSelfie(emp, storeCode, time, punchType);
 }
 
 // ==========================================
@@ -1551,8 +1568,8 @@ export class PontoStore {
     deviceType?: "Totem Tablet Catuaí" | "Totem Tablet Boulevard" | "Computador da Loja";
   }): { success: boolean; punch: Punch; record: DayTimeRecord } {
     const now = new Date();
-    const dateStr = now.toISOString().split("T")[0];
-    const timeStr = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
+    const dateStr = getLocalDateStr(now);
+    const timeStr = getLocalTimeStr(now);
 
     const records = this.getDayRecords();
     const employees = this.getEmployees();

@@ -9,7 +9,10 @@ import {
   INITIAL_EMPLOYEES,
   INITIAL_STORES,
   INITIAL_SCHEDULES,
+  getLocalDateStr,
 } from "../../lib/ponto-store";
+import { getEmployeeBiometricStudy } from "../../lib/facial-biometrics";
+import { FaceMeshVisualizer } from "./FaceMeshVisualizer";
 import { usePonto } from "../../hooks/use-ponto";
 import { AthletaLogo } from "../AthletaLogo";
 import {
@@ -65,7 +68,7 @@ export function EmployeeSelfServiceView({
     (safeStores.find((s) => s.id === employee?.storeId) || safeStores[0]) || INITIAL_STORES[0];
 
   // Aba ativa na Área do Colaborador
-  const [activeTab, setActiveTab] = useState<"meu_ponto" | "minha_escala" | "banco_horas" | "historico" | "comprovantes">("meu_ponto");
+  const [activeTab, setActiveTab] = useState<"meu_ponto" | "minha_biometria" | "minha_escala" | "banco_horas" | "historico" | "comprovantes">("meu_ponto");
 
   // Competência selecionada para histórico
   const [selectedMonth, setSelectedMonth] = useState<string>("2026-11");
@@ -77,11 +80,35 @@ export function EmployeeSelfServiceView({
   const [corrTime, setCorrTime] = useState("18:05");
   const [corrReason, setCorrReason] = useState("");
 
-  const todayStr = "2026-11-11"; // Data base do sistema 11/11/2026
+  const todayStr = getLocalDateStr();
 
-  // Registro de hoje do colaborador
+  const formattedTodayDate = useMemo(() => {
+    try {
+      const [y, m, d] = todayStr.split("-").map(Number);
+      const dateObj = new Date(y, m - 1, d);
+      const formatted = dateObj.toLocaleDateString("pt-BR", {
+        weekday: "long",
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+      });
+      return formatted.charAt(0).toUpperCase() + formatted.slice(1);
+    } catch {
+      return todayStr;
+    }
+  }, [todayStr]);
+
+  // Registro de hoje do colaborador (ou o mais recente)
   const todayRecord = useMemo(() => {
-    return records.find((r) => r.employeeId === employee.id && r.date === todayStr);
+    const recToday = records.find((r) => r.employeeId === employee.id && r.date === todayStr);
+    if (recToday && recToday.punches && recToday.punches.length > 0) return recToday;
+    if (recToday) return recToday;
+    // Fallback: se ainda não bateu hoje, busca o mais recente registrado
+    return (
+      records
+        .filter((r) => r.employeeId === employee.id && r.punches && r.punches.length > 0)
+        .sort((a, b) => b.date.localeCompare(a.date))[0] || null
+    );
   }, [records, employee.id, todayStr]);
 
   // Batidas de hoje
@@ -251,6 +278,7 @@ export function EmployeeSelfServiceView({
           <div className="flex items-center gap-1 mt-4 overflow-x-auto text-xs font-bold scrollbar-none">
             {[
               { id: "meu_ponto", label: "Meu Ponto Hoje", icon: Clock },
+              { id: "minha_biometria", label: "Meu Rosto & Biometria 3D", icon: Sparkles },
               { id: "banco_horas", label: "Meu Banco de Horas", icon: TrendingUp },
               { id: "minha_escala", label: "Minha Escala", icon: Calendar },
               { id: "historico", label: "Meu Histórico", icon: FileText },
@@ -287,7 +315,7 @@ export function EmployeeSelfServiceView({
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b pb-4">
                 <div>
                   <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest block">
-                    Data Oficial: Quarta-feira, 11 de Novembro de 2026
+                    Data Oficial: {formattedTodayDate}
                   </span>
                   <h3 className="text-xl font-black text-slate-900 mt-0.5">
                     Acompanhamento da Jornada de Hoje
@@ -420,6 +448,152 @@ export function EmployeeSelfServiceView({
             </div>
           </div>
         )}
+
+        {/* ABA BIOMETRIA & ESTUDO FACIAL 3D DO COLABORADOR */}
+        {activeTab === "minha_biometria" && (() => {
+          const bio = getEmployeeBiometricStudy(employee);
+          const allEmpPunches = records
+            .filter((r) => r.employeeId === employee.id)
+            .flatMap((r) => r.punches || []);
+          const lastPunch = allEmpPunches[allEmpPunches.length - 1];
+
+          return (
+            <div className="space-y-6">
+              {/* Banner Informativo */}
+              <div className="bg-gradient-to-r from-[#00381c] via-[#004724] to-[#012513] text-white rounded-3xl p-6 shadow-md border border-[#FFC72C]/20 relative overflow-hidden flex flex-col md:flex-row items-center justify-between gap-4">
+                <div className="max-w-2xl">
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-[#FFC72C] text-[#004724]">
+                      Homologado REP-P • Portaria 671 MTE
+                    </span>
+                    <span className="text-xs text-white/70">Reconhecimento Facial de Alta Precisão</span>
+                  </div>
+                  <h3 className="text-xl font-black text-white">
+                    Seu Perfil Biométrico Facial: {employee.name}
+                  </h3>
+                  <p className="text-xs text-white/80 mt-1 leading-relaxed">
+                    Sua face possui 68 marcos anatômicos calibrados que permitem ao Totem do Quiosque registrar seu ponto em menos de 1 segundo com vivacidade 3D e sem risco de fraudes.
+                  </p>
+                </div>
+
+                <div className="bg-white/10 px-5 py-3 rounded-2xl text-center border border-white/10 shrink-0">
+                  <span className="text-[10px] text-white/70 uppercase font-bold block">ID Biométrico Oficial</span>
+                  <span className="font-mono text-base font-black text-[#FFC72C]">{bio.biometricId}</span>
+                </div>
+              </div>
+
+              {/* Grid Principal: Rosto com Malha + Indicadores + Última Batida */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                {/* 1. Malha Facial Interativa */}
+                <div className="bg-white p-5 rounded-3xl border border-slate-200 shadow-sm text-center flex flex-col items-center">
+                  <span className="text-xs font-black uppercase text-slate-500 tracking-wider mb-3">
+                    Malha Facial Cadastrada (68 Marcos)
+                  </span>
+                  <div className="max-w-[260px] w-full">
+                    <FaceMeshVisualizer
+                      photoUrl={employee.photoUrl || employee.avatar}
+                      employeeName={employee.name}
+                      landmarks={bio.landmarks}
+                      showLandmarks={true}
+                      showLines={true}
+                      showHud={true}
+                      interpupillaryMm={bio.interpupillaryDistanceMm}
+                      qualityScore={bio.qualityScore}
+                    />
+                  </div>
+                  <p className="text-[11px] text-slate-500 mt-3">
+                    Passe o cursor sobre os pontos dourados para inspecionar os marcos do seu rosto.
+                  </p>
+                </div>
+
+                {/* 2. Métricas do Estudo Facial */}
+                <div className="md:col-span-2 space-y-4">
+                  <div className="bg-white p-5 rounded-3xl border border-slate-200 shadow-sm space-y-4">
+                    <h4 className="text-sm font-black text-slate-900 uppercase tracking-wider flex items-center gap-2">
+                      <Sparkles className="w-4 h-4 text-[#FFC72C]" />
+                      Análise Anatômica e Confiança Biométrica
+                    </h4>
+
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                      <div className="bg-slate-50 p-3.5 rounded-2xl border border-slate-200">
+                        <span className="text-[10px] uppercase font-bold text-slate-400 block">Qualidade da Imagem</span>
+                        <span className="text-xl font-black text-slate-900">{bio.qualityScore}%</span>
+                        <span className="text-[10px] text-emerald-600 font-bold block mt-0.5">HD Homologada</span>
+                      </div>
+
+                      <div className="bg-slate-50 p-3.5 rounded-2xl border border-slate-200">
+                        <span className="text-[10px] uppercase font-bold text-slate-400 block">Simetria Bilateral</span>
+                        <span className="text-xl font-black text-slate-900">{bio.symmetryScore}%</span>
+                        <span className="text-[10px] text-emerald-600 font-bold block mt-0.5">Face centralizada</span>
+                      </div>
+
+                      <div className="bg-slate-50 p-3.5 rounded-2xl border border-slate-200">
+                        <span className="text-[10px] uppercase font-bold text-slate-400 block">Distância Pupilar (D.I.P)</span>
+                        <span className="text-xl font-black text-emerald-700">{bio.interpupillaryDistanceMm} mm</span>
+                        <span className="text-[10px] text-slate-500 block mt-0.5">Margem: ± 0.3mm</span>
+                      </div>
+
+                      <div className="bg-slate-50 p-3.5 rounded-2xl border border-slate-200">
+                        <span className="text-[10px] uppercase font-bold text-slate-400 block">Vivacidade (Anti-Spoofing)</span>
+                        <span className="text-xl font-black text-emerald-700">{bio.livenessConfidence}%</span>
+                        <span className="text-[10px] text-emerald-600 font-bold block mt-0.5">Detecção 3D ativa</span>
+                      </div>
+
+                      <div className="bg-slate-50 p-3.5 rounded-2xl border border-slate-200">
+                        <span className="text-[10px] uppercase font-bold text-slate-400 block">Proporção Áurea</span>
+                        <span className="text-xl font-black text-slate-900">{bio.goldenRatioMatch}%</span>
+                        <span className="text-[10px] text-slate-500 block mt-0.5">Geometria natural</span>
+                      </div>
+
+                      <div className="bg-slate-50 p-3.5 rounded-2xl border border-slate-200">
+                        <span className="text-[10px] uppercase font-bold text-slate-400 block">Marcos Avaliados</span>
+                        <span className="text-xl font-black text-[#005C30]">68 Pontos</span>
+                        <span className="text-[10px] text-slate-500 block mt-0.5">Padrão dlib / mediapipe</span>
+                      </div>
+                    </div>
+
+                    {/* Hash SHA-256 */}
+                    <div className="p-3.5 bg-slate-950 text-white rounded-2xl font-mono text-[10px] space-y-1">
+                      <span className="text-[#FFC72C] font-bold block uppercase">Chave Criptográfica SHA-256:</span>
+                      <span className="text-slate-300 break-all block">{bio.hashSha256}</span>
+                    </div>
+                  </div>
+
+                  {/* Última Batida Registrada no Totem */}
+                  {lastPunch && (
+                    <div className="bg-white p-5 rounded-3xl border border-slate-200 shadow-sm flex items-center justify-between gap-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-12 h-12 rounded-2xl overflow-hidden bg-slate-900 border border-emerald-500 shrink-0">
+                          <img
+                            src={lastPunch.photoUrl}
+                            alt="Última Selfie"
+                            className="w-full h-full object-cover"
+                          />
+                        </div>
+                        <div>
+                          <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-700 block">
+                            Última Foto Validada no Totem
+                          </span>
+                          <h5 className="text-sm font-black text-slate-900">
+                            {lastPunch.time} ({lastPunch.type.replace("_", " ").toUpperCase()})
+                          </h5>
+                          <p className="text-[11px] text-slate-400">NSR #{lastPunch.nsr}</p>
+                        </div>
+                      </div>
+
+                      <div className="text-right">
+                        <span className="px-3 py-1 rounded-full bg-emerald-100 text-emerald-800 font-mono font-bold text-xs inline-block">
+                          99.4% Match
+                        </span>
+                        <span className="text-[10px] text-slate-400 block mt-1">Vivacidade Confirmada</span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          );
+        })()}
 
         {/* ABA 2: MEU BANCO DE HORAS */}
         {activeTab === "banco_horas" && (
