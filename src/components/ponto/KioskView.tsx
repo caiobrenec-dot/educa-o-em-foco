@@ -11,8 +11,6 @@ import { AthletaLogo } from "../AthletaLogo";
 import {
   Camera,
   MapPin,
-  Lock,
-  Unlock,
   CheckCircle2,
   Clock,
   Building2,
@@ -22,14 +20,7 @@ import {
   RefreshCw,
   ArrowLeft,
   ChevronRight,
-  Maximize2,
-  Minimize2,
-  Fingerprint,
   Sparkles,
-  KeyRound,
-  Eye,
-  EyeOff,
-  Tablet,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -38,39 +29,20 @@ interface KioskViewProps {
   defaultStoreId?: string;
 }
 
-type KioskStep = "select_employee" | "enter_pin" | "capture_photo" | "success_receipt";
+type KioskStep = "select_employee" | "capture_photo" | "success_receipt";
 
-export function KioskView({ onExitKiosk, defaultStoreId }: KioskViewProps) {
-  const { stores, employees, records, recordPunch, validateKioskCode } = usePonto();
+export function KioskView({ onExitKiosk, defaultStoreId = "store-catuai" }: KioskViewProps) {
+  const { stores, employees, records, recordPunch } = usePonto();
 
-  // Estado de Bloqueio/Ativação do Totem por Código da Unidade (CAT-XXXX ou BLV-XXXX)
-  const [unlockedStoreId, setUnlockedStoreId] = useState<string | null>(() => {
-    if (typeof window !== "undefined") {
-      const saved = localStorage.getItem("athleta_kiosk_active_store");
-      if (saved) return saved;
-    }
-    return defaultStoreId && defaultStoreId !== "all" ? defaultStoreId : null;
-  });
+  // Loja em uso no totem (livre para alternar entre Catuaí e Boulevard sem senhas)
+  const [currentStoreId, setCurrentStoreId] = useState<string>(
+    defaultStoreId && defaultStoreId !== "all" ? defaultStoreId : "store-catuai"
+  );
+  const currentStore = stores.find((s) => s.id === currentStoreId) || stores[0];
 
-  // Input do código de ativação do quiosque
-  const [inputCode, setInputCode] = useState<string>("");
-  const [activationError, setActivationError] = useState<string | null>(null);
-
-  // Modal para encerramento do totem (exige senha mestre do proprietário)
-  const [isExitAuthOpen, setIsExitAuthOpen] = useState(false);
-  const [adminMasterPin, setAdminMasterPin] = useState("");
-  const [adminPinError, setAdminPinError] = useState<string | null>(null);
-
-  // Loja em uso no tablet
-  const currentStore = stores.find((s) => s.id === unlockedStoreId) || null;
-
-  // Passo atual do fluxo
+  // Passo atual do fluxo (direto: Seleciona Funcionário -> Foto ao Vivo -> Comprovante)
   const [step, setStep] = useState<KioskStep>("select_employee");
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
-
-  // PIN do funcionário
-  const [pinDigits, setPinDigits] = useState<string>("");
-  const [pinError, setPinError] = useState<string | null>(null);
 
   // Tipo de batida inteligente
   const [selectedPunchType, setSelectedPunchType] = useState<PunchType>("entrada");
@@ -113,7 +85,7 @@ export function KioskView({ onExitKiosk, defaultStoreId }: KioskViewProps) {
 
   // Coleta inicial de geolocalização do tablet da loja
   useEffect(() => {
-    if (!unlockedStoreId || !currentStore) return;
+    if (!currentStore) return;
 
     if (typeof navigator !== "undefined" && navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
@@ -139,54 +111,12 @@ export function KioskView({ onExitKiosk, defaultStoreId }: KioskViewProps) {
         { enableHighAccuracy: true, timeout: 5000 }
       );
     }
-  }, [unlockedStoreId, currentStore]);
+  }, [currentStoreId, currentStore]);
 
-  // Lista de funcionários ativos daquela loja liberada
+  // Lista de funcionários ativos daquela loja
   const storeEmployees = employees.filter(
-    (e) => e.storeId === unlockedStoreId && e.status === "ativo"
+    (e) => e.storeId === currentStoreId && e.status === "ativo"
   );
-
-  // ==========================================
-  // 1. ATIVAÇÃO DO QUIOSQUE POR CÓDIGO DA UNIDADE
-  // ==========================================
-  const handleActivateKiosk = (codeToTest?: string) => {
-    const code = (codeToTest || inputCode).trim().toUpperCase();
-    if (!code) {
-      setActivationError("Digite o código de liberação da unidade.");
-      return;
-    }
-
-    const result = validateKioskCode(code);
-    if (result.valid && result.store) {
-      setUnlockedStoreId(result.store.id);
-      if (typeof window !== "undefined") {
-        localStorage.setItem("athleta_kiosk_active_store", result.store.id);
-      }
-      setActivationError(null);
-      setInputCode("");
-      toast.success(`Totem ativado com sucesso para ${result.store.name}!`);
-    } else {
-      setActivationError(result.errorMessage || "Código inválido. Consulte o Administrador.");
-    }
-  };
-
-  // Desbloqueio / Saída protegida por Senha Mestre do ADM
-  const handleConfirmExitAdmin = (e: React.FormEvent) => {
-    e.preventDefault();
-    // Senha mestre padrão do sistema ou PIN do gestor
-    if (adminMasterPin === "8888" || adminMasterPin === "1234" || adminMasterPin === "admin") {
-      setIsExitAuthOpen(false);
-      setAdminMasterPin("");
-      setAdminPinError(null);
-      stopCamera();
-      if (typeof window !== "undefined") {
-        localStorage.removeItem("athleta_kiosk_active_store");
-      }
-      onExitKiosk();
-    } else {
-      setAdminPinError("Senha Master incorreta. Acesso restrito ao proprietário.");
-    }
-  };
 
   // Determina automaticamente o próximo tipo de marcação recomendada
   const getNextPunchType = (empId: string): PunchType => {
@@ -204,52 +134,15 @@ export function KioskView({ onExitKiosk, defaultStoreId }: KioskViewProps) {
     return "saida";
   };
 
-  // 1. Ao selecionar o funcionário
+  // 1. Ao selecionar o funcionário: VAI DIRETO PARA A FOTO (SEM SENHA / SEM PIN)
   const handleSelectEmployee = (emp: Employee) => {
     setSelectedEmployee(emp);
-    setPinDigits("");
-    setPinError(null);
     setSelectedPunchType(getNextPunchType(emp.id));
-    setStep("enter_pin");
+    startCamera();
+    setStep("capture_photo");
   };
 
-  // 2. Teclado de PIN
-  const handlePinInput = (num: string) => {
-    if (pinDigits.length >= 6) return;
-    const newPin = pinDigits + num;
-    setPinDigits(newPin);
-    setPinError(null);
-
-    // Validação automática se atingir 4 dígitos
-    if (newPin.length >= 4) {
-      verifyPin(newPin);
-    }
-  };
-
-  const handlePinBackspace = () => {
-    setPinDigits((prev) => prev.slice(0, -1));
-    setPinError(null);
-  };
-
-  const handlePinClear = () => {
-    setPinDigits("");
-    setPinError(null);
-  };
-
-  const verifyPin = (pinToTest: string) => {
-    if (!selectedEmployee) return;
-
-    if (pinToTest === selectedEmployee.pin) {
-      // PIN Correto! Inicia câmera
-      startCamera();
-      setStep("capture_photo");
-    } else {
-      setPinError("PIN individual incorreto. Tente novamente.");
-      setTimeout(() => setPinDigits(""), 800);
-    }
-  };
-
-  // 3. Ativação da WebCam / Câmera ao Vivo
+  // 2. Ativação da WebCam / Câmera ao Vivo
   const startCamera = async () => {
     setCameraError(null);
     try {
@@ -292,9 +185,9 @@ export function KioskView({ onExitKiosk, defaultStoreId }: KioskViewProps) {
     };
   }, []);
 
-  // 4. Capturar foto e registrar ponto
+  // 3. Capturar foto e registrar ponto
   const handleCaptureAndPunch = () => {
-    if (!selectedEmployee || !unlockedStoreId) return;
+    if (!selectedEmployee || !currentStore) return;
 
     let photoData = "";
 
@@ -361,18 +254,18 @@ export function KioskView({ onExitKiosk, defaultStoreId }: KioskViewProps) {
 
     const result = recordPunch({
       employeeId: selectedEmployee.id,
-      storeId: unlockedStoreId as "store-catuai" | "store-boulevard",
+      storeId: currentStoreId as "store-catuai" | "store-boulevard",
       punchType: selectedPunchType,
       photoUrl: photoData,
       location: gpsLocation || {
-        latitude: currentStore?.gpsCoords.lat || -23.3421,
-        longitude: currentStore?.gpsCoords.lng || -51.1872,
+        latitude: currentStore.gpsCoords.lat || -23.3421,
+        longitude: currentStore.gpsCoords.lng || -51.1872,
         accuracy: 5,
-        address: `${currentStore?.name} • ${currentStore?.city} - ${currentStore?.state}`,
+        address: `${currentStore.name} • ${currentStore.city} - ${currentStore.state}`,
         inRange: true,
       },
       deviceType:
-        unlockedStoreId === "store-catuai" ? "Totem Tablet Catuaí" : "Totem Tablet Boulevard",
+        currentStoreId === "store-catuai" ? "Totem Tablet Catuaí" : "Totem Tablet Boulevard",
     });
 
     stopCamera();
@@ -415,8 +308,6 @@ export function KioskView({ onExitKiosk, defaultStoreId }: KioskViewProps) {
   const resetToStart = () => {
     stopCamera();
     setSelectedEmployee(null);
-    setPinDigits("");
-    setPinError(null);
     setCapturedPhotoUrl(null);
     setReceiptData(null);
     setStep("select_employee");
@@ -435,114 +326,39 @@ export function KioskView({ onExitKiosk, defaultStoreId }: KioskViewProps) {
     year: "numeric",
   });
 
-  // ==========================================
-  // TELA DE ATIVAÇÃO / DESBLOQUEIO DO TOTEM
-  // ==========================================
-  if (!unlockedStoreId || !currentStore) {
-    return (
-      <div className="fixed inset-0 z-50 bg-[#062316] text-white flex flex-col items-center justify-center p-4">
-        <div className="w-full max-w-md bg-[#004724] border border-[#0d4a2f] rounded-3xl p-6 sm:p-8 shadow-2xl text-center space-y-6">
-          <div className="flex justify-center">
-            <AthletaLogo variant="white" size="lg" subtitleText="ATIVAÇÃO DE TOTEM" />
-          </div>
-
-          <div className="space-y-1">
-            <h2 className="text-xl font-black text-white">Bloqueio de Quiosque por Unidade</h2>
-            <p className="text-xs text-white/70">
-              Informe o Código de Acesso da loja física para liberar o tablet exclusivamente para esta filial.
-            </p>
-          </div>
-
-          {/* Form de Código de Acesso */}
-          <div className="space-y-3">
-            <div className="relative">
-              <KeyRound className="w-5 h-5 text-[#FFC72C] absolute left-3.5 top-1/2 -translate-y-1/2" />
-              <input
-                type="text"
-                placeholder="Ex: CAT-9824 ou BLV-4193"
-                value={inputCode}
-                onChange={(e) => {
-                  setInputCode(e.target.value.toUpperCase());
-                  setActivationError(null);
-                }}
-                className="w-full pl-11 pr-4 py-3 rounded-2xl bg-black/40 border border-white/20 text-white font-mono text-center text-lg font-black tracking-widest placeholder:text-white/30 focus:outline-none focus:ring-2 focus:ring-[#FFC72C]"
-              />
-            </div>
-
-            {activationError && (
-              <div className="p-2.5 rounded-xl bg-red-500/20 border border-red-500/40 text-red-200 text-xs font-semibold flex items-center justify-center gap-1.5">
-                <AlertCircle className="w-4 h-4 shrink-0" />
-                <span>{activationError}</span>
-              </div>
-            )}
-
-            <button
-              onClick={() => handleActivateKiosk()}
-              className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-[#FFC72C] to-[#E6A817] hover:brightness-110 active:scale-98 text-[#004724] font-black text-sm uppercase tracking-wider shadow-lg transition-all"
-            >
-              Liberar & Bloquear Tablet Nesta Loja
-            </button>
-          </div>
-
-          {/* Atalhos rápidos para demonstração */}
-          <div className="pt-4 border-t border-white/10 space-y-2">
-            <span className="text-[11px] font-bold text-white/50 uppercase tracking-wider block">
-              Códigos Oficiais das Filiais (Configurados no ADM)
-            </span>
-            <div className="grid grid-cols-2 gap-2 text-xs">
-              {stores.map((s) => (
-                <button
-                  key={s.id}
-                  onClick={() => handleActivateKiosk(s.kioskAccessCode)}
-                  className="p-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-left transition-colors"
-                >
-                  <span className="block font-black text-[#FFC72C] font-mono text-sm">
-                    {s.kioskAccessCode}
-                  </span>
-                  <span className="text-[10px] text-white/70 block truncate">
-                    {s.name.replace("Athleta ", "")}
-                  </span>
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Botão Voltar ao ADM */}
-          <button
-            onClick={onExitKiosk}
-            className="text-xs text-white/60 hover:text-white flex items-center justify-center gap-1.5 mx-auto font-bold pt-2"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            Voltar ao Painel ADM Total
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  // ==========================================
-  // QUIOSQUE ATIVADO E TRAVADO NA UNIDADE
-  // ==========================================
   return (
     <div className="fixed inset-0 z-50 bg-[#062316] text-white flex flex-col justify-between overflow-y-auto select-none">
-      {/* Topo do Quiosque: Logo, Loja Fixa Travada e Relógio */}
+      {/* Topo do Quiosque: Logo, Seletor de Loja Livre e Relógio */}
       <header className="p-4 md:px-8 border-b border-[#0d4a2f] bg-[#004724]/90 backdrop-blur-md flex items-center justify-between flex-wrap gap-4">
         <div className="flex items-center gap-4">
           <AthletaLogo variant="white" size="md" subtitleText="TOTEM LOJA" />
 
-          {/* Loja Fixa sem seletor (Tablet travado na filial) */}
-          <div className="flex items-center gap-2 bg-black/40 px-3.5 py-1.5 rounded-xl border border-white/10 text-xs">
-            <Lock className="w-4 h-4 text-[#FFC72C]" />
-            <div className="text-left leading-tight">
-              <span className="font-black text-white block">{currentStore.name}</span>
-              <span className="text-[10px] text-emerald-400 font-mono">
-                Totem Travado • Código {currentStore.kioskAccessCode}
-              </span>
-            </div>
+          {/* Seletor de Loja Livre (Acesso sem senhas) */}
+          <div className="flex items-center gap-1 bg-black/40 p-1 rounded-xl border border-white/10 text-xs">
+            {stores.map((s) => {
+              const isSelected = currentStoreId === s.id;
+              return (
+                <button
+                  key={s.id}
+                  onClick={() => {
+                    setCurrentStoreId(s.id);
+                    resetToStart();
+                  }}
+                  className={`px-3 py-1.5 rounded-lg font-bold transition-all text-xs flex items-center gap-1.5 ${
+                    isSelected
+                      ? "bg-[#FFC72C] text-[#004724] font-black shadow-xs"
+                      : "text-white/80 hover:text-white hover:bg-white/10"
+                  }`}
+                >
+                  <Building2 className="w-3.5 h-3.5" />
+                  {s.name.replace("Athleta ", "")}
+                </button>
+              );
+            })}
           </div>
         </div>
 
-        {/* Relógio Digital Oficial */}
+        {/* Relógio Digital Oficial e Saída Direta sem Senha */}
         <div className="flex items-center gap-6">
           <div className="text-right">
             <div className="font-mono text-2xl md:text-3xl font-black text-[#FFC72C] tracking-wider leading-none">
@@ -553,34 +369,36 @@ export function KioskView({ onExitKiosk, defaultStoreId }: KioskViewProps) {
             </div>
           </div>
 
-          {/* Botão Sair Protegido por Senha Master */}
+          {/* Botão Sair Livre (Sem Senha Master) */}
           <button
-            onClick={() => setIsExitAuthOpen(true)}
+            onClick={() => {
+              stopCamera();
+              onExitKiosk();
+            }}
             className="px-3 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-xs font-bold text-white transition-colors flex items-center gap-1.5"
-            title="Encerrar Totem (Requer Senha Master ADM)"
+            title="Voltar ao Painel ADM Total"
           >
-            <Lock className="w-4 h-4 text-[#FFC72C]" />
-            <span className="hidden sm:inline">Desbloquear / Sair</span>
+            <ArrowLeft className="w-4 h-4" />
+            <span className="hidden sm:inline">Voltar ao ADM</span>
           </button>
         </div>
       </header>
 
       {/* Conteúdo Principal do Fluxo */}
       <main className="flex-1 flex items-center justify-center p-4 md:p-8">
-        {/* PASSO 1: SELECIONAR FUNCIONÁRIO DA LOJA ATIVA */}
+        {/* PASSO 1: SELECIONAR FUNCIONÁRIO (DIRETO) */}
         {step === "select_employee" && (
           <div className="w-full max-w-4xl space-y-6 text-center animate-in fade-in zoom-in-95 duration-200">
             <div>
               <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#FFC72C]/20 border border-[#FFC72C]/40 text-[#FFC72C] text-xs font-bold uppercase tracking-wider mb-2">
                 <Sparkles className="w-3.5 h-3.5" />
-                Ponto Eletrônico Oficial
+                Ponto Eletrônico Oficial • Acesso Rápido
               </span>
               <h2 className="text-2xl md:text-3xl font-black text-white tracking-tight">
-                Toque no seu nome para bater o ponto
+                Toque no seu nome para registrar o ponto
               </h2>
               <p className="text-sm text-white/70 mt-1">
-                Unidade: <strong className="text-[#FFC72C]">{currentStore.name}</strong> •
-                Identificação individual obrigatória
+                Unidade: <strong className="text-[#FFC72C]">{currentStore.name}</strong> • Toque direto para abrir a câmera
               </p>
             </div>
 
@@ -616,7 +434,7 @@ export function KioskView({ onExitKiosk, defaultStoreId }: KioskViewProps) {
                     </div>
 
                     <div className="mt-3 w-full py-1.5 rounded-lg bg-white/5 group-hover:bg-[#FFC72C] text-[11px] font-bold text-white group-hover:text-[#004724] transition-colors">
-                      Selecionar →
+                      Bater Ponto →
                     </div>
                   </button>
                 ))
@@ -625,108 +443,12 @@ export function KioskView({ onExitKiosk, defaultStoreId }: KioskViewProps) {
           </div>
         )}
 
-        {/* PASSO 2: AUTENTICAÇÃO POR PIN NUMÉRICO INDIVIDUAL */}
-        {step === "enter_pin" && selectedEmployee && (
-          <div className="w-full max-w-md bg-[#0b3d26] border border-[#0d4a2f] rounded-3xl p-6 shadow-2xl space-y-6 text-center animate-in fade-in zoom-in-95 duration-200">
-            {/* Foto e Nome do Colaborador Selecionado */}
-            <div className="flex items-center justify-center gap-3 border-b border-white/10 pb-4">
-              <img
-                src={selectedEmployee.photoUrl}
-                alt={selectedEmployee.name}
-                className="w-12 h-12 rounded-xl object-cover border-2 border-[#FFC72C]"
-              />
-              <div className="text-left">
-                <h3 className="font-bold text-white text-base leading-tight">
-                  {selectedEmployee.name}
-                </h3>
-                <span className="text-xs text-white/60">{selectedEmployee.role}</span>
-              </div>
-            </div>
-
-            <div>
-              <span className="text-xs font-bold uppercase tracking-wider text-[#FFC72C]">
-                Passo 1 de 2: Autenticação Segura
-              </span>
-              <h2 className="text-xl font-black text-white mt-1">Digite seu PIN de 4 Dígitos</h2>
-              <p className="text-xs text-white/60 mt-0.5">
-                Senha individual de registro de ponto (Portaria 671)
-              </p>
-            </div>
-
-            {/* Display dos dígitos do PIN */}
-            <div className="flex justify-center gap-3 my-4">
-              {[0, 1, 2, 3].map((idx) => {
-                const filled = pinDigits.length > idx;
-                return (
-                  <div
-                    key={idx}
-                    className={`w-12 h-14 rounded-2xl border-2 flex items-center justify-center text-2xl font-bold transition-all ${
-                      filled
-                        ? "border-[#FFC72C] bg-[#FFC72C]/20 text-[#FFC72C]"
-                        : "border-white/20 bg-black/30 text-white/30"
-                    }`}
-                  >
-                    {filled ? "●" : ""}
-                  </div>
-                );
-              })}
-            </div>
-
-            {pinError && (
-              <div className="p-2.5 bg-red-500/20 border border-red-500/40 rounded-xl text-red-200 text-xs font-semibold flex items-center justify-center gap-2">
-                <AlertCircle className="w-4 h-4 shrink-0" />
-                <span>{pinError}</span>
-              </div>
-            )}
-
-            {/* Teclado Numérico Touch Screen */}
-            <div className="grid grid-cols-3 gap-2.5 max-w-xs mx-auto">
-              {["1", "2", "3", "4", "5", "6", "7", "8", "9"].map((n) => (
-                <button
-                  key={n}
-                  onClick={() => handlePinInput(n)}
-                  className="h-14 rounded-2xl bg-white/10 hover:bg-white/20 active:bg-[#FFC72C] active:text-[#004724] font-black text-xl text-white transition-all shadow-xs"
-                >
-                  {n}
-                </button>
-              ))}
-              <button
-                onClick={handlePinClear}
-                className="h-14 rounded-2xl bg-white/5 hover:bg-white/10 active:bg-white/20 font-bold text-xs uppercase text-white/70 transition-all"
-              >
-                Limpar
-              </button>
-              <button
-                onClick={() => handlePinInput("0")}
-                className="h-14 rounded-2xl bg-white/10 hover:bg-white/20 active:bg-[#FFC72C] active:text-[#004724] font-black text-xl text-white transition-all shadow-xs"
-              >
-                0
-              </button>
-              <button
-                onClick={handlePinBackspace}
-                className="h-14 rounded-2xl bg-white/5 hover:bg-white/10 active:bg-white/20 font-bold text-xs uppercase text-white/70 transition-all"
-              >
-                ←
-              </button>
-            </div>
-
-            <div className="pt-2">
-              <button
-                onClick={resetToStart}
-                className="text-xs text-white/60 hover:text-white underline"
-              >
-                Não é você? Escolha outro funcionário
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* PASSO 3: CÂMERA AO VIVO E SELEÇÃO DE MARCAÇÃO */}
+        {/* PASSO 2: CÂMERA AO VIVO E SELEÇÃO DE MARCAÇÃO (DIRETO SEM PIN) */}
         {step === "capture_photo" && selectedEmployee && (
           <div className="w-full max-w-md bg-[#0b3d26] border border-[#0d4a2f] rounded-3xl p-6 shadow-2xl space-y-5 text-center animate-in fade-in zoom-in-95 duration-200">
             <div>
               <span className="text-xs font-bold uppercase tracking-wider text-[#FFC72C]">
-                Passo 2 de 2: Foto Obrigatória ao Vivo
+                Foto Obrigatória ao Vivo
               </span>
               <h2 className="text-xl font-black text-white mt-1">Olhe para a câmera</h2>
               <p className="text-xs text-white/60 mt-0.5">
@@ -789,12 +511,6 @@ export function KioskView({ onExitKiosk, defaultStoreId }: KioskViewProps) {
               </div>
             </div>
 
-            {/* Aviso Obrigatório */}
-            <p className="text-[11px] text-white/60">
-              * A foto é capturada <strong>obrigatoriamente pela câmera do totem</strong>, sem
-              opção de envio de fotos da galeria, conforme a Portaria 671 MTE.
-            </p>
-
             {/* Botão de Disparo */}
             <button
               onClick={handleCaptureAndPunch}
@@ -808,12 +524,12 @@ export function KioskView({ onExitKiosk, defaultStoreId }: KioskViewProps) {
               onClick={resetToStart}
               className="text-xs text-white/60 hover:text-white underline"
             >
-              Cancelar marcação
+              Trocar de colaborador
             </button>
           </div>
         )}
 
-        {/* PASSO 4: COMPROVANTE DIGITAL OFICIAL DE PONTO E RETORNO AUTOMÁTICO */}
+        {/* PASSO 3: COMPROVANTE DIGITAL OFICIAL DE PONTO E RETORNO AUTOMÁTICO */}
         {step === "success_receipt" && receiptData && selectedEmployee && (
           <div className="w-full max-w-md bg-white text-slate-900 rounded-3xl p-6 shadow-2xl border-4 border-[#005C30] space-y-5 text-center animate-in fade-in zoom-in-95 duration-200">
             <div className="w-16 h-16 rounded-full bg-emerald-100 border-2 border-emerald-500 text-emerald-600 flex items-center justify-center mx-auto">
@@ -883,69 +599,13 @@ export function KioskView({ onExitKiosk, defaultStoreId }: KioskViewProps) {
         )}
       </main>
 
-      {/* MODAL DE SAÍDA AUTENTICADA (SENHA MASTER DO PROPRIETÁRIO) */}
-      {isExitAuthOpen && (
-        <div className="fixed inset-0 z-60 flex items-center justify-center bg-black/80 backdrop-blur-md p-4 animate-in fade-in duration-200">
-          <div className="bg-[#004724] border border-[#0d4a2f] rounded-3xl max-w-sm w-full p-6 text-center space-y-4 shadow-2xl">
-            <div className="w-12 h-12 rounded-2xl bg-black/30 border border-white/20 text-[#FFC72C] flex items-center justify-center mx-auto">
-              <Lock className="w-6 h-6" />
-            </div>
-
-            <div>
-              <h3 className="text-base font-black text-white">Desbloquear Totem / Sair</h3>
-              <p className="text-xs text-white/70 mt-1">
-                Apenas o proprietário ou administrador geral pode encerrar o modo quiosque.
-              </p>
-            </div>
-
-            <form onSubmit={handleConfirmExitAdmin} className="space-y-3">
-              <input
-                type="password"
-                placeholder="Senha Master ADM (padrão: 8888)"
-                value={adminMasterPin}
-                onChange={(e) => {
-                  setAdminMasterPin(e.target.value);
-                  setAdminPinError(null);
-                }}
-                className="w-full p-3 rounded-xl bg-black/40 border border-white/20 text-white text-center text-sm font-bold placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-[#FFC72C]"
-                autoFocus
-              />
-
-              {adminPinError && (
-                <p className="text-xs text-red-300 font-semibold">{adminPinError}</p>
-              )}
-
-              <div className="grid grid-cols-2 gap-2 pt-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsExitAuthOpen(false);
-                    setAdminMasterPin("");
-                    setAdminPinError(null);
-                  }}
-                  className="py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-xs font-bold text-white transition-colors"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  className="py-2.5 rounded-xl bg-[#FFC72C] hover:brightness-110 text-[#004724] text-xs font-black transition-all"
-                >
-                  Confirmar Saída
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
       {/* Rodapé Institucional do Quiosque */}
       <footer className="p-3 text-center border-t border-[#0d4a2f] bg-[#00361c] text-[11px] text-white/50 flex items-center justify-between px-6 flex-wrap gap-2">
         <span>
-          ATHLETA PONTO • Portaria 671 MTE • Dispositivo Homologado da Unidade
+          ATHLETA PONTO • Dispositivo da Unidade
         </span>
         <span className="text-[#FFC72C] font-semibold">
-          Segurança Facial Obrigatória Ativa
+          Modo Livre de Senhas Ativo para Testes
         </span>
       </footer>
     </div>
