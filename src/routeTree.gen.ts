@@ -10,11 +10,55 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AdminRouteImport } from './routes/admin'
+import { Route as AreaDoAssociadoRouteImport } from './routes/area-do-associado'
+import { Route as ContatoRouteImport } from './routes/contato'
+import { Route as DenunciasRouteImport } from './routes/denuncias'
+import { Route as LazerRouteImport } from './routes/lazer'
+import { Route as PrivacidadeRouteImport } from './routes/privacidade'
+import { Route as QueroMeAssociarRouteImport } from './routes/quero-me-associar'
 import { Route as QuiosqueRouteImport } from './routes/quiosque'
+import { Route as SaudeRouteImport } from './routes/saude'
+import { Route as TermosRouteImport } from './routes/termos'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminRoute = AdminRouteImport.update({
+  id: '/admin',
+  path: '/admin',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AreaDoAssociadoRoute = AreaDoAssociadoRouteImport.update({
+  id: '/area-do-associado',
+  path: '/area-do-associado',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ContatoRoute = ContatoRouteImport.update({
+  id: '/contato',
+  path: '/contato',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DenunciasRoute = DenunciasRouteImport.update({
+  id: '/denuncias',
+  path: '/denuncias',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LazerRoute = LazerRouteImport.update({
+  id: '/lazer',
+  path: '/lazer',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PrivacidadeRoute = PrivacidadeRouteImport.update({
+  id: '/privacidade',
+  path: '/privacidade',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const QueroMeAssociarRoute = QueroMeAssociarRouteImport.update({
+  id: '/quero-me-associar',
+  path: '/quero-me-associar',
   getParentRoute: () => rootRouteImport,
 } as any)
 const QuiosqueRoute = QuiosqueRouteImport.update({
@@ -22,31 +66,111 @@ const QuiosqueRoute = QuiosqueRouteImport.update({
   path: '/quiosque',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SaudeRoute = SaudeRouteImport.update({
+  id: '/saude',
+  path: '/saude',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TermosRoute = TermosRouteImport.update({
+  id: '/termos',
+  path: '/termos',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/admin': typeof AdminRoute
+  '/area-do-associado': typeof AreaDoAssociadoRoute
+  '/contato': typeof ContatoRoute
+  '/denuncias': typeof DenunciasRoute
+  '/lazer': typeof LazerRoute
+  '/privacidade': typeof PrivacidadeRoute
+  '/quero-me-associar': typeof QueroMeAssociarRoute
   '/quiosque': typeof QuiosqueRoute
+  '/saude': typeof SaudeRoute
+  '/termos': typeof TermosRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/admin': typeof AdminRoute
+  '/area-do-associado': typeof AreaDoAssociadoRoute
+  '/contato': typeof ContatoRoute
+  '/denuncias': typeof DenunciasRoute
+  '/lazer': typeof LazerRoute
+  '/privacidade': typeof PrivacidadeRoute
+  '/quero-me-associar': typeof QueroMeAssociarRoute
   '/quiosque': typeof QuiosqueRoute
+  '/saude': typeof SaudeRoute
+  '/termos': typeof TermosRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/admin': typeof AdminRoute
+  '/area-do-associado': typeof AreaDoAssociadoRoute
+  '/contato': typeof ContatoRoute
+  '/denuncias': typeof DenunciasRoute
+  '/lazer': typeof LazerRoute
+  '/privacidade': typeof PrivacidadeRoute
+  '/quero-me-associar': typeof QueroMeAssociarRoute
   '/quiosque': typeof QuiosqueRoute
+  '/saude': typeof SaudeRoute
+  '/termos': typeof TermosRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/quiosque'
+  fullPaths:
+    | '/'
+    | '/admin'
+    | '/area-do-associado'
+    | '/contato'
+    | '/denuncias'
+    | '/lazer'
+    | '/privacidade'
+    | '/quero-me-associar'
+    | '/quiosque'
+    | '/saude'
+    | '/termos'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/quiosque'
-  id: '__root__' | '/' | '/quiosque'
+  to:
+    | '/'
+    | '/admin'
+    | '/area-do-associado'
+    | '/contato'
+    | '/denuncias'
+    | '/lazer'
+    | '/privacidade'
+    | '/quero-me-associar'
+    | '/quiosque'
+    | '/saude'
+    | '/termos'
+  id:
+    | '__root__'
+    | '/'
+    | '/admin'
+    | '/area-do-associado'
+    | '/contato'
+    | '/denuncias'
+    | '/lazer'
+    | '/privacidade'
+    | '/quero-me-associar'
+    | '/quiosque'
+    | '/saude'
+    | '/termos'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AdminRoute: typeof AdminRoute
+  AreaDoAssociadoRoute: typeof AreaDoAssociadoRoute
+  ContatoRoute: typeof ContatoRoute
+  DenunciasRoute: typeof DenunciasRoute
+  LazerRoute: typeof LazerRoute
+  PrivacidadeRoute: typeof PrivacidadeRoute
+  QueroMeAssociarRoute: typeof QueroMeAssociarRoute
   QuiosqueRoute: typeof QuiosqueRoute
+  SaudeRoute: typeof SaudeRoute
+  TermosRoute: typeof TermosRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -58,6 +182,55 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin': {
+      id: '/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AdminRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/area-do-associado': {
+      id: '/area-do-associado'
+      path: '/area-do-associado'
+      fullPath: '/area-do-associado'
+      preLoaderRoute: typeof AreaDoAssociadoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/contato': {
+      id: '/contato'
+      path: '/contato'
+      fullPath: '/contato'
+      preLoaderRoute: typeof ContatoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/denuncias': {
+      id: '/denuncias'
+      path: '/denuncias'
+      fullPath: '/denuncias'
+      preLoaderRoute: typeof DenunciasRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/lazer': {
+      id: '/lazer'
+      path: '/lazer'
+      fullPath: '/lazer'
+      preLoaderRoute: typeof LazerRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/privacidade': {
+      id: '/privacidade'
+      path: '/privacidade'
+      fullPath: '/privacidade'
+      preLoaderRoute: typeof PrivacidadeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/quero-me-associar': {
+      id: '/quero-me-associar'
+      path: '/quero-me-associar'
+      fullPath: '/quero-me-associar'
+      preLoaderRoute: typeof QueroMeAssociarRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/quiosque': {
       id: '/quiosque'
       path: '/quiosque'
@@ -65,12 +238,35 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof QuiosqueRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/saude': {
+      id: '/saude'
+      path: '/saude'
+      fullPath: '/saude'
+      preLoaderRoute: typeof SaudeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/termos': {
+      id: '/termos'
+      path: '/termos'
+      fullPath: '/termos'
+      preLoaderRoute: typeof TermosRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AdminRoute: AdminRoute,
+  AreaDoAssociadoRoute: AreaDoAssociadoRoute,
+  ContatoRoute: ContatoRoute,
+  DenunciasRoute: DenunciasRoute,
+  LazerRoute: LazerRoute,
+  PrivacidadeRoute: PrivacidadeRoute,
+  QueroMeAssociarRoute: QueroMeAssociarRoute,
   QuiosqueRoute: QuiosqueRoute,
+  SaudeRoute: SaudeRoute,
+  TermosRoute: TermosRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
