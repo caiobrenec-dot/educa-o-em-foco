@@ -8,29 +8,24 @@ import {
   Scripts,
 } from "@tanstack/react-router";
 import { useEffect, type ReactNode } from "react";
-
 import appCss from "../styles.css?url";
-import { reportLovableError } from "../lib/lovable-error-reporting";
-import { Header } from "@/components/site/Header";
-import { Footer } from "@/components/site/Footer";
 import { Toaster } from "@/components/ui/sonner";
-
 
 function NotFoundComponent() {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background px-4">
-      <div className="max-w-md text-center">
-        <h1 className="text-7xl font-bold text-foreground">404</h1>
-        <h2 className="mt-4 text-xl font-semibold text-foreground">Page not found</h2>
-        <p className="mt-2 text-sm text-muted-foreground">
-          The page you're looking for doesn't exist or has been moved.
+    <div className="flex min-h-screen items-center justify-center bg-[#f8fafc] px-4 text-center">
+      <div className="max-w-md">
+        <h1 className="text-7xl font-black text-[#005C30]">404</h1>
+        <h2 className="mt-4 text-xl font-bold text-slate-800">Página não encontrada</h2>
+        <p className="mt-2 text-sm text-slate-500">
+          A rota solicitada não existe no sistema ATHLETA PONTO.
         </p>
         <div className="mt-6">
           <Link
             to="/"
-            className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+            className="inline-flex items-center justify-center rounded-xl bg-[#005C30] px-5 py-2.5 text-xs font-bold text-white transition-colors hover:bg-[#004724] shadow-md"
           >
-            Go home
+            Voltar ao Painel Geral
           </Link>
         </div>
       </div>
@@ -41,18 +36,15 @@ function NotFoundComponent() {
 function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
   console.error(error);
   const router = useRouter();
-  useEffect(() => {
-    reportLovableError(error, { boundary: "tanstack_root_error_component" });
-  }, [error]);
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background px-4">
-      <div className="max-w-md text-center">
-        <h1 className="text-xl font-semibold tracking-tight text-foreground">
-          This page didn't load
+    <div className="flex min-h-screen items-center justify-center bg-[#f8fafc] px-4 text-center">
+      <div className="max-w-md">
+        <h1 className="text-xl font-bold tracking-tight text-slate-900">
+          Ocorreu uma instabilidade na página
         </h1>
-        <p className="mt-2 text-sm text-muted-foreground">
-          Something went wrong on our end. You can try refreshing or head back home.
+        <p className="mt-2 text-sm text-slate-500">
+          Você pode tentar recarregar os dados do sistema.
         </p>
         <div className="mt-6 flex flex-wrap justify-center gap-2">
           <button
@@ -60,15 +52,15 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
               router.invalidate();
               reset();
             }}
-            className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+            className="inline-flex items-center justify-center rounded-xl bg-[#005C30] px-4 py-2 text-xs font-bold text-white shadow-md hover:bg-[#004724]"
           >
-            Try again
+            Tentar novamente
           </button>
           <a
             href="/"
-            className="inline-flex items-center justify-center rounded-md border border-input bg-background px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent"
+            className="inline-flex items-center justify-center rounded-xl border border-slate-300 bg-white px-4 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50"
           >
-            Go home
+            Voltar ao Início
           </a>
         </div>
       </div>
@@ -80,30 +72,29 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
   head: () => ({
     meta: [
       { charSet: "utf-8" },
-      { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Sinpro Londrina — Sindicato dos Profissionais da Educação" },
+      { name: "viewport", content: "width=device-width, initial-scale=1, maximum-scale=1" },
+      { title: "ATHLETA PONTO — Painel de Controle Total dos Proprietários" },
       {
         name: "description",
         content:
-          "Sindicato que representa profissionais de escolas particulares e instituições de ensino filantrópicas da região.",
+          "Sistema oficial de controle de jornada, ponto eletrônico com reconhecimento facial ao vivo, gestão de escalas e auditoria das Lojas Athleta.",
       },
-      { name: "author", content: "Sinpro Londrina" },
-      { property: "og:title", content: "Sinpro Londrina" },
+      { name: "author", content: "Athleta Brasil" },
+      { property: "og:title", content: "ATHLETA PONTO — Centro de Gestão de Funcionários e Jornadas" },
       {
         property: "og:description",
-        content: "Informação, defesa e benefícios para quem trabalha na educação.",
+        content: "Visão total da operação para donos e gerentes: Catuaí, Boulevard e rede nacional.",
       },
       { property: "og:type", content: "website" },
-      { name: "twitter:card", content: "summary_large_image" },
+      { name: "theme-color", content: "#005C30" },
     ],
     links: [
       { rel: "stylesheet", href: appCss },
-      { rel: "icon", type: "image/png", href: "/favicon.png" },
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
       { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
       {
         rel: "stylesheet",
-        href: "https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Source+Sans+3:wght@400;500;600;700&display=swap",
+        href: "https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&display=swap",
       },
     ],
   }),
@@ -119,7 +110,7 @@ function RootShell({ children }: { children: ReactNode }) {
       <head>
         <HeadContent />
       </head>
-      <body>
+      <body className="min-h-screen bg-[#f8fafc] text-slate-900 font-sans antialiased">
         {children}
         <Scripts />
       </body>
@@ -132,22 +123,8 @@ function RootComponent() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <a
-        href="#conteudo"
-        className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-[60] focus:rounded-md focus:bg-primary focus:px-4 focus:py-2 focus:text-primary-foreground"
-      >
-        Pular para o conteúdo
-      </a>
-      <div className="flex min-h-screen flex-col">
-        <Header />
-        <main id="conteudo" className="flex-1">
-          {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
-          <Outlet />
-        </main>
-        <Footer />
-      </div>
-      <Toaster richColors position="top-center" />
+      <Outlet />
+      <Toaster richColors position="top-right" />
     </QueryClientProvider>
   );
 }
-

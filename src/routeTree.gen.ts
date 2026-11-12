@@ -10,167 +10,43 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as BeneficiosRouteImport } from './routes/beneficios'
-import { Route as ComoFuncionaRouteImport } from './routes/como-funciona'
-import { Route as ContatoRouteImport } from './routes/contato'
-import { Route as DireitosEAcordosRouteImport } from './routes/direitos-e-acordos'
-import { Route as EventosRouteImport } from './routes/eventos'
-import { Route as LazerRouteImport } from './routes/lazer'
-import { Route as OSindicatoRouteImport } from './routes/o-sindicato'
-import { Route as SaudeRouteImport } from './routes/saude'
-import { Route as NoticiasIndexRouteImport } from './routes/noticias.index'
-import { Route as NoticiasSlugRouteImport } from './routes/noticias.$slug'
+import { Route as QuiosqueRouteImport } from './routes/quiosque'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const BeneficiosRoute = BeneficiosRouteImport.update({
-  id: '/beneficios',
-  path: '/beneficios',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ComoFuncionaRoute = ComoFuncionaRouteImport.update({
-  id: '/como-funciona',
-  path: '/como-funciona',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ContatoRoute = ContatoRouteImport.update({
-  id: '/contato',
-  path: '/contato',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const DireitosEAcordosRoute = DireitosEAcordosRouteImport.update({
-  id: '/direitos-e-acordos',
-  path: '/direitos-e-acordos',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const EventosRoute = EventosRouteImport.update({
-  id: '/eventos',
-  path: '/eventos',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const LazerRoute = LazerRouteImport.update({
-  id: '/lazer',
-  path: '/lazer',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const OSindicatoRoute = OSindicatoRouteImport.update({
-  id: '/o-sindicato',
-  path: '/o-sindicato',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const SaudeRoute = SaudeRouteImport.update({
-  id: '/saude',
-  path: '/saude',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const NoticiasIndexRoute = NoticiasIndexRouteImport.update({
-  id: '/noticias/',
-  path: '/noticias/',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const NoticiasSlugRoute = NoticiasSlugRouteImport.update({
-  id: '/noticias/$slug',
-  path: '/noticias/$slug',
+const QuiosqueRoute = QuiosqueRouteImport.update({
+  id: '/quiosque',
+  path: '/quiosque',
   getParentRoute: () => rootRouteImport,
 } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/beneficios': typeof BeneficiosRoute
-  '/como-funciona': typeof ComoFuncionaRoute
-  '/contato': typeof ContatoRoute
-  '/direitos-e-acordos': typeof DireitosEAcordosRoute
-  '/eventos': typeof EventosRoute
-  '/lazer': typeof LazerRoute
-  '/o-sindicato': typeof OSindicatoRoute
-  '/saude': typeof SaudeRoute
-  '/noticias/$slug': typeof NoticiasSlugRoute
-  '/noticias/': typeof NoticiasIndexRoute
+  '/quiosque': typeof QuiosqueRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/beneficios': typeof BeneficiosRoute
-  '/como-funciona': typeof ComoFuncionaRoute
-  '/contato': typeof ContatoRoute
-  '/direitos-e-acordos': typeof DireitosEAcordosRoute
-  '/eventos': typeof EventosRoute
-  '/lazer': typeof LazerRoute
-  '/o-sindicato': typeof OSindicatoRoute
-  '/saude': typeof SaudeRoute
-  '/noticias/$slug': typeof NoticiasSlugRoute
-  '/noticias': typeof NoticiasIndexRoute
+  '/quiosque': typeof QuiosqueRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
-  '/beneficios': typeof BeneficiosRoute
-  '/como-funciona': typeof ComoFuncionaRoute
-  '/contato': typeof ContatoRoute
-  '/direitos-e-acordos': typeof DireitosEAcordosRoute
-  '/eventos': typeof EventosRoute
-  '/lazer': typeof LazerRoute
-  '/o-sindicato': typeof OSindicatoRoute
-  '/saude': typeof SaudeRoute
-  '/noticias/$slug': typeof NoticiasSlugRoute
-  '/noticias/': typeof NoticiasIndexRoute
+  '/quiosque': typeof QuiosqueRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths:
-    | '/'
-    | '/beneficios'
-    | '/como-funciona'
-    | '/contato'
-    | '/direitos-e-acordos'
-    | '/eventos'
-    | '/lazer'
-    | '/o-sindicato'
-    | '/saude'
-    | '/noticias/$slug'
-    | '/noticias/'
+  fullPaths: '/' | '/quiosque'
   fileRoutesByTo: FileRoutesByTo
-  to:
-    | '/'
-    | '/beneficios'
-    | '/como-funciona'
-    | '/contato'
-    | '/direitos-e-acordos'
-    | '/eventos'
-    | '/lazer'
-    | '/o-sindicato'
-    | '/saude'
-    | '/noticias/$slug'
-    | '/noticias'
-  id:
-    | '__root__'
-    | '/'
-    | '/beneficios'
-    | '/como-funciona'
-    | '/contato'
-    | '/direitos-e-acordos'
-    | '/eventos'
-    | '/lazer'
-    | '/o-sindicato'
-    | '/saude'
-    | '/noticias/$slug'
-    | '/noticias/'
+  to: '/' | '/quiosque'
+  id: '__root__' | '/' | '/quiosque'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
-  BeneficiosRoute: typeof BeneficiosRoute
-  ComoFuncionaRoute: typeof ComoFuncionaRoute
-  ContatoRoute: typeof ContatoRoute
-  DireitosEAcordosRoute: typeof DireitosEAcordosRoute
-  EventosRoute: typeof EventosRoute
-  LazerRoute: typeof LazerRoute
-  OSindicatoRoute: typeof OSindicatoRoute
-  SaudeRoute: typeof SaudeRoute
-  NoticiasSlugRoute: typeof NoticiasSlugRoute
-  NoticiasIndexRoute: typeof NoticiasIndexRoute
+  QuiosqueRoute: typeof QuiosqueRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -182,74 +58,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/beneficios': {
-      id: '/beneficios'
-      path: '/beneficios'
-      fullPath: '/beneficios'
-      preLoaderRoute: typeof BeneficiosRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/como-funciona': {
-      id: '/como-funciona'
-      path: '/como-funciona'
-      fullPath: '/como-funciona'
-      preLoaderRoute: typeof ComoFuncionaRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/contato': {
-      id: '/contato'
-      path: '/contato'
-      fullPath: '/contato'
-      preLoaderRoute: typeof ContatoRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/direitos-e-acordos': {
-      id: '/direitos-e-acordos'
-      path: '/direitos-e-acordos'
-      fullPath: '/direitos-e-acordos'
-      preLoaderRoute: typeof DireitosEAcordosRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/eventos': {
-      id: '/eventos'
-      path: '/eventos'
-      fullPath: '/eventos'
-      preLoaderRoute: typeof EventosRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/lazer': {
-      id: '/lazer'
-      path: '/lazer'
-      fullPath: '/lazer'
-      preLoaderRoute: typeof LazerRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/o-sindicato': {
-      id: '/o-sindicato'
-      path: '/o-sindicato'
-      fullPath: '/o-sindicato'
-      preLoaderRoute: typeof OSindicatoRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/saude': {
-      id: '/saude'
-      path: '/saude'
-      fullPath: '/saude'
-      preLoaderRoute: typeof SaudeRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/noticias/': {
-      id: '/noticias/'
-      path: '/noticias'
-      fullPath: '/noticias/'
-      preLoaderRoute: typeof NoticiasIndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/noticias/$slug': {
-      id: '/noticias/$slug'
-      path: '/noticias/$slug'
-      fullPath: '/noticias/$slug'
-      preLoaderRoute: typeof NoticiasSlugRouteImport
+    '/quiosque': {
+      id: '/quiosque'
+      path: '/quiosque'
+      fullPath: '/quiosque'
+      preLoaderRoute: typeof QuiosqueRouteImport
       parentRoute: typeof rootRouteImport
     }
   }
@@ -257,16 +70,7 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
-  BeneficiosRoute: BeneficiosRoute,
-  ComoFuncionaRoute: ComoFuncionaRoute,
-  ContatoRoute: ContatoRoute,
-  DireitosEAcordosRoute: DireitosEAcordosRoute,
-  EventosRoute: EventosRoute,
-  LazerRoute: LazerRoute,
-  OSindicatoRoute: OSindicatoRoute,
-  SaudeRoute: SaudeRoute,
-  NoticiasSlugRoute: NoticiasSlugRoute,
-  NoticiasIndexRoute: NoticiasIndexRoute,
+  QuiosqueRoute: QuiosqueRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

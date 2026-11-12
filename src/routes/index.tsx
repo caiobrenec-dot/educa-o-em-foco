@@ -1,364 +1,327 @@
-import { Link, createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import React, { useState } from "react";
+import { usePonto } from "../hooks/use-ponto";
+import { Employee, DayTimeRecord, Store } from "../lib/ponto-store";
+import { AthletaLogo } from "../components/AthletaLogo";
+import { OverviewModule } from "../components/ponto/OverviewModule";
+import { EmployeesModule } from "../components/ponto/EmployeesModule";
+import { WeeklyControlModule } from "../components/ponto/WeeklyControlModule";
+import { TimeRecordsModule } from "../components/ponto/TimeRecordsModule";
+import { SchedulesModule } from "../components/ponto/SchedulesModule";
+import { StoresModule } from "../components/ponto/StoresModule";
+import { ReportsModule } from "../components/ponto/ReportsModule";
+import { AuditModule } from "../components/ponto/AuditModule";
+import { SettingsModule } from "../components/ponto/SettingsModule";
+import { EmployeeProfileModal } from "../components/ponto/EmployeeProfileModal";
+import { DayDetailsModal } from "../components/ponto/DayDetailsModal";
+import { KioskView } from "../components/ponto/KioskView";
 import {
-  ArrowRight,
-  BookOpen,
-  CalendarCheck,
-  FileText,
-  Gavel,
-  GraduationCap,
-  HandCoins,
-  HeartPulse,
-  MessageSquare,
-  Scale,
-  ShieldCheck,
-  Stethoscope,
-  Tent,
-  UserPlus,
+  LayoutDashboard,
   Users,
+  CalendarDays,
+  FileText,
+  CalendarRange,
+  Building2,
+  BarChart3,
+  ShieldCheck,
+  Settings,
+  Tablet,
+  Bell,
+  Clock,
+  Sparkles,
+  ChevronDown,
 } from "lucide-react";
-import { useState } from "react";
-
-import { DemoNotice, SectionTitle } from "@/components/site/PageShell";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { site } from "@/config/site";
-import { categoriasNoticias, depoimentos, imagens, noticias } from "@/data/demo";
-import { formatarData } from "@/lib/masks";
 
 export const Route = createFileRoute("/")({
-  head: () => ({
-    meta: [
-      { title: "Sinpro Londrina — Sindicato dos Profissionais da Educação" },
-      {
-        name: "description",
-        content:
-          "Conheça seus direitos, acompanhe as negociações coletivas e acesse benefícios, saúde e lazer para profissionais da educação.",
-      },
-      { property: "og:title", content: "Sinpro Londrina" },
-      {
-        property: "og:description",
-        content: "Informação, defesa e benefícios para quem trabalha na educação.",
-      },
-    ],
-  }),
-  component: Index,
+  component: IndexPage,
 });
 
-const acessoRapido = [
-  { icon: UserPlus, titulo: "Quero me associar", texto: "Preencha o cadastro em poucos minutos.", to: "/quero-me-associar" },
-  { icon: FileText, titulo: "Consultar acordos coletivos", texto: "Convenções, acordos e pisos salariais.", to: "/direitos-e-acordos" },
-  { icon: Scale, titulo: "Preciso de orientação jurídica", texto: "Fale com o departamento jurídico.", to: "/contato" },
-  { icon: HandCoins, titulo: "Quero usar os benefícios", texto: "Descontos e convênios em toda a base.", to: "/beneficios" },
-  { icon: Stethoscope, titulo: "Quero agendar atendimento de saúde", texto: "Psicologia, odontologia e mais.", to: "/saude" },
-  { icon: MessageSquare, titulo: "Quero falar com o sindicato", texto: "Telefone, WhatsApp, e-mail e endereço.", to: "/contato" },
-] as const;
+export type TabType =
+  | "visao-geral"
+  | "funcionarios"
+  | "controle-semanal"
+  | "registro-ponto"
+  | "escalas"
+  | "lojas"
+  | "relatorios"
+  | "auditoria"
+  | "configuracoes";
 
-const beneficios = [
-  { icon: Scale, titulo: "Assistência jurídica", texto: "Orientação trabalhista individual e defesa coletiva da categoria." },
-  { icon: Gavel, titulo: "Negociação coletiva", texto: "Campanha salarial anual, pauta construída em assembleia." },
-  { icon: HandCoins, titulo: "Convênios e descontos", texto: "Rede de parceiros em saúde, educação, lazer e serviços." },
-  { icon: HeartPulse, titulo: "Atendimento em saúde", texto: "Especialidades para associados e dependentes." },
-  { icon: Tent, titulo: "Espaço de lazer", texto: "Sede recreativa com piscinas, quadras e salão de eventos." },
-  { icon: GraduationCap, titulo: "Cursos e formação", texto: "Formação continuada com certificado para a categoria." },
-] as const;
+function IndexPage() {
+  const navigate = useNavigate();
+  const { stores, employees, corrections } = usePonto();
 
-function Index() {
-  const [categoria, setCategoria] = useState<string>("Todas");
-  const listadas = noticias
-    .filter((n) => categoria === "Todas" || n.categoria === categoria)
-    .slice(0, 4);
+  const [activeTab, setActiveTab] = useState<TabType>("visao-geral");
+  const [selectedStoreId, setSelectedStoreId] = useState<string>("all");
+
+  // Modais de detalhe
+  const [profileEmployee, setProfileEmployee] = useState<Employee | null>(null);
+  const [detailsRecord, setDetailsRecord] = useState<DayTimeRecord | null>(null);
+  const [detailsEmployee, setDetailsEmployee] = useState<Employee | null>(null);
+
+  // Modo quiosque direto na tela
+  const [isKioskActive, setIsKioskActive] = useState<boolean>(false);
+
+  // Quantidade de solicitações pendentes de correção
+  const pendingCorrectionsCount = corrections.filter((c) => c.status === "pendente").length;
+
+  const handleOpenDayDetails = (record: DayTimeRecord, emp?: Employee) => {
+    setDetailsRecord(record);
+    if (emp) {
+      setDetailsEmployee(emp);
+    } else {
+      const found = employees.find((e) => e.id === record.employeeId);
+      setDetailsEmployee(found || null);
+    }
+  };
+
+  if (isKioskActive) {
+    return (
+      <KioskView
+        onExitKiosk={() => setIsKioskActive(false)}
+        defaultStoreId={selectedStoreId !== "all" ? selectedStoreId : "store-catuai"}
+      />
+    );
+  }
+
+  const tabsConfig: { id: TabType; label: string; icon: React.ElementType; badge?: number }[] = [
+    { id: "visao-geral", label: "Visão Geral", icon: LayoutDashboard },
+    { id: "funcionarios", label: "Funcionários", icon: Users },
+    { id: "controle-semanal", label: "Controle Semanal", icon: CalendarDays },
+    { id: "registro-ponto", label: "Registro de Ponto", icon: FileText },
+    { id: "escalas", label: "Escalas", icon: CalendarRange },
+    { id: "lojas", label: "Lojas", icon: Building2 },
+    { id: "relatorios", label: "Relatórios", icon: BarChart3 },
+    { id: "auditoria", label: "Auditoria", icon: ShieldCheck, badge: pendingCorrectionsCount },
+    { id: "configuracoes", label: "Configurações", icon: Settings },
+  ];
 
   return (
-    <>
-      {/* HERO */}
-      <section className="bg-primary text-primary-foreground">
-        <div className="container-page grid gap-10 py-12 lg:grid-cols-2 lg:items-center lg:py-20">
-          <div>
-            <Badge className="bg-action text-action-foreground hover:bg-action">Representação sindical</Badge>
-            <h1 className="mt-5 text-3xl font-extrabold leading-tight sm:text-4xl lg:text-5xl">
-              Informação, defesa e benefícios para quem trabalha na educação
-            </h1>
-            <p className="mt-5 max-w-xl text-lg text-primary-foreground/85">
-              Conheça seus direitos, participe das negociações coletivas e tenha acesso a serviços
-              exclusivos para profissionais da educação.
-            </p>
-            <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-              <Button asChild size="lg" className="bg-action text-action-foreground hover:bg-action/90">
-                <Link to="/quero-me-associar">Quero me associar</Link>
-              </Button>
-              <Button
-                asChild
-                size="lg"
-                variant="outline"
-                className="border-primary-foreground/40 bg-transparent text-primary-foreground hover:bg-primary-foreground/10"
-              >
-                <Link to="/o-sindicato">Conheça o sindicato</Link>
-              </Button>
+    <div className="min-h-screen bg-[#f8fafc] text-slate-900 flex flex-col">
+      {/* 1. HEADER EXCLUSIVO DOS PROPRIETÁRIOS COM CORES OFICIAIS ATHLETA */}
+      <header className="sticky top-0 z-40 bg-[#005C30] text-white shadow-md border-b border-[#004724]">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between h-16 md:h-20 gap-4">
+            {/* Logo Athleta com as 3 estrelas */}
+            <div className="flex items-center gap-3">
+              <AthletaLogo variant="white" size="md" subtitleText="ADMIN TOTAL" />
             </div>
-          </div>
-          <div className="overflow-hidden rounded-2xl shadow-lift">
-            <img
-              src={imagens.heroEducacao}
-              alt="Grupo de profissionais da educação reunidos no corredor de uma escola"
-              width={1600}
-              height={1104}
-              className="h-full w-full object-cover"
-            />
-          </div>
-        </div>
-      </section>
 
-      {/* ACESSO RÁPIDO */}
-      <section className="section-y bg-surface">
-        <div className="container-page">
-          <SectionTitle
-            eyebrow="Comece por aqui"
-            title="O que você precisa hoje?"
-            description="Escolha uma das opções abaixo para ir direto ao ponto."
-          />
-          <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {acessoRapido.map((c) => (
-              <Link
-                key={c.titulo}
-                to={c.to}
-                className="group rounded-xl border border-border bg-card p-6 shadow-card transition-all hover:-translate-y-0.5 hover:border-brand hover:shadow-lift"
-              >
-                <span className="inline-flex size-12 items-center justify-center rounded-lg bg-brand/10 text-brand">
-                  <c.icon className="size-6" aria-hidden="true" />
-                </span>
-                <h3 className="mt-4 font-display text-lg font-bold text-foreground">{c.titulo}</h3>
-                <p className="mt-1.5 text-sm text-muted-foreground">{c.texto}</p>
-                <span className="mt-4 inline-flex items-center gap-1 text-sm font-semibold text-brand">
-                  Acessar
-                  <ArrowRight className="size-4 transition-transform group-hover:translate-x-1" aria-hidden="true" />
-                </span>
-              </Link>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* O QUE É O SINDICATO */}
-      <section className="section-y">
-        <div className="container-page grid gap-10 lg:grid-cols-2 lg:items-center">
-          <div className="overflow-hidden rounded-2xl border border-border">
-            <img
-              src={imagens.assembleia}
-              alt="Profissionais participando de uma assembleia com as mãos levantadas em votação"
-              width={1200}
-              height={800}
-              loading="lazy"
-              className="h-full w-full object-cover"
-            />
-          </div>
-          <div>
-            <SectionTitle
-              eyebrow="Entenda em 1 minuto"
-              title="O que é o sindicato?"
-              description="O sindicato é a organização que representa quem trabalha na educação. Ele negocia melhores condições de trabalho com as escolas e mantenedoras, orienta sobre direitos e oferece serviços e benefícios aos associados."
-            />
-            <ul className="mt-6 space-y-3 text-sm text-foreground">
-              {[
-                "Negocia salários, jornada e condições em nome de toda a categoria.",
-                "Orienta sobre férias, hora-atividade, rescisão e outros direitos.",
-                "Oferece convênios, atendimento em saúde e espaço de lazer aos associados.",
-              ].map((t) => (
-                <li key={t} className="flex gap-2">
-                  <ShieldCheck className="mt-0.5 size-5 shrink-0 text-action" aria-hidden="true" />
-                  <span>{t}</span>
-                </li>
-              ))}
-            </ul>
-            <Button asChild className="mt-7">
-              <Link to="/como-funciona">Saiba como funciona</Link>
-            </Button>
-          </div>
-        </div>
-      </section>
-
-      {/* NÚMEROS */}
-      {/* ATENÇÃO: números institucionais são PLACEHOLDERS (src/config/site.ts → numeros).
-          Substitua por dados reais antes da publicação. */}
-      <section className="bg-primary py-12 text-primary-foreground">
-        <div className="container-page">
-          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-            {site.numeros.map((n) => (
-              <div key={n.rotulo} className="rounded-xl bg-primary-foreground/10 p-6 text-center">
-                <p className="font-display text-4xl font-extrabold">{n.valor}</p>
-                <p className="mt-1 text-sm text-primary-foreground/80">{n.rotulo}</p>
+            {/* Ações Centrais e Direita */}
+            <div className="flex items-center gap-3 md:gap-4">
+              {/* Seletor de Loja no Topo */}
+              <div className="hidden sm:flex items-center gap-2 bg-[#004724] px-3 py-1.5 rounded-xl border border-white/10 text-xs">
+                <Building2 className="w-4 h-4 text-[#FFC72C]" />
+                <select
+                  value={selectedStoreId}
+                  onChange={(e) => setSelectedStoreId(e.target.value)}
+                  className="bg-transparent text-white font-bold focus:outline-none cursor-pointer"
+                >
+                  <option value="all" className="bg-[#004724] text-white">
+                    Todas as Unidades (Rede Athleta)
+                  </option>
+                  {stores.map((s) => (
+                    <option key={s.id} value={s.id} className="bg-[#004724] text-white">
+                      {s.name}
+                    </option>
+                  ))}
+                </select>
               </div>
-            ))}
-          </div>
-          <p className="mt-4 text-center text-xs text-primary-foreground/70">
-            Valores em formato de placeholder (+XX). Substitua pelos números reais da entidade antes da publicação.
-          </p>
-        </div>
-      </section>
 
-      {/* BENEFÍCIOS */}
-      <section className="section-y">
-        <div className="container-page">
-          <SectionTitle eyebrow="Para associados" title="Principais benefícios" />
-          <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {beneficios.map((b) => (
-              <Card key={b.titulo} className="border-border shadow-card">
-                <CardHeader>
-                  <span className="inline-flex size-11 items-center justify-center rounded-lg bg-action/12 text-action">
-                    <b.icon className="size-5" aria-hidden="true" />
-                  </span>
-                  <CardTitle className="mt-3 font-display text-lg">{b.titulo}</CardTitle>
-                  <CardDescription>{b.texto}</CardDescription>
-                </CardHeader>
-              </Card>
-            ))}
-          </div>
-          <Button asChild variant="outline" className="mt-8">
-            <Link to="/beneficios">Ver todos os convênios</Link>
-          </Button>
-        </div>
-      </section>
-
-      {/* DIREITOS E ACORDOS */}
-      <section className="section-y bg-surface">
-        <div className="container-page grid gap-8 rounded-2xl border border-border bg-card p-8 shadow-card lg:grid-cols-[1.2fr_1fr] lg:items-center">
-          <div>
-            <SectionTitle
-              eyebrow="Transparência"
-              title="Direitos e acordos"
-              description="Consulte os documentos que garantem seus direitos, com histórico e período de vigência."
-            />
-            <ul className="mt-6 grid gap-2 sm:grid-cols-2">
-              {["Pisos salariais", "Convenções coletivas", "Acordos coletivos", "Comunicados importantes"].map((t) => (
-                <li key={t} className="flex items-center gap-2 rounded-lg bg-surface px-3 py-2.5 text-sm">
-                  <BookOpen className="size-4 text-brand" aria-hidden="true" />
-                  {t}
-                </li>
-              ))}
-            </ul>
-          </div>
-          <div className="lg:text-right">
-            <Button asChild size="lg">
-              <Link to="/direitos-e-acordos">Consultar documentos</Link>
-            </Button>
-          </div>
-        </div>
-      </section>
-
-      {/* NOTÍCIAS */}
-      <section className="section-y">
-        <div className="container-page">
-          <SectionTitle eyebrow="Comunicação" title="Notícias" />
-          <div className="mt-6 flex flex-wrap gap-2" role="group" aria-label="Filtrar notícias por categoria">
-            {["Todas", ...categoriasNoticias].map((c) => (
-              <Button
-                key={c}
-                size="sm"
-                variant={categoria === c ? "default" : "outline"}
-                onClick={() => setCategoria(c)}
-                aria-pressed={categoria === c}
+              {/* Botão de Destaque: Modo Quiosque / Totem da Loja */}
+              <button
+                onClick={() => setIsKioskActive(true)}
+                className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-[#FFC72C] to-[#E6A817] hover:brightness-110 active:scale-95 text-[#004724] font-black text-xs uppercase tracking-wider transition-all shadow-md flex items-center gap-2"
+                title="Abrir tela cheia para o tablet ou computador fixo na loja"
               >
-                {c}
-              </Button>
-            ))}
-          </div>
+                <Tablet className="w-4 h-4" />
+                <span className="hidden md:inline">Modo Quiosque (Totem Loja)</span>
+                <span className="md:hidden">Quiosque</span>
+              </button>
 
-          {listadas.length === 0 ? (
-            <p className="mt-8 rounded-xl border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
-              Nenhuma notícia publicada nesta categoria por enquanto. Escolha outra categoria ou veja todas.
-            </p>
-          ) : (
-            <div className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-              {listadas.map((n) => (
-                <article key={n.slug} className="flex flex-col overflow-hidden rounded-xl border border-border bg-card shadow-card">
-                  <img
-                    src={n.imagem}
-                    alt={`Imagem da notícia: ${n.titulo}`}
-                    width={800}
-                    height={520}
-                    loading="lazy"
-                    className="aspect-[3/2] w-full object-cover"
-                  />
-                  <div className="flex flex-1 flex-col p-5">
-                    <div className="flex items-center gap-2 text-xs">
-                      <Badge variant="secondary">{n.categoria}</Badge>
-                      <time dateTime={n.data} className="text-muted-foreground">
-                        {formatarData(n.data)}
-                      </time>
-                    </div>
-                    <h3 className="mt-3 font-display text-base font-bold leading-snug">{n.titulo}</h3>
-                    <p className="mt-2 line-clamp-3 text-sm text-muted-foreground">{n.resumo}</p>
-                    <Button asChild variant="link" className="mt-auto justify-start px-0">
-                      <Link to="/noticias/$slug" params={{ slug: n.slug }}>
-                        Ler notícia
-                      </Link>
-                    </Button>
-                  </div>
-                </article>
-              ))}
+              {/* Notificações de Auditoria / Correções */}
+              <button
+                onClick={() => setActiveTab("auditoria")}
+                className="relative p-2 rounded-xl bg-white/10 hover:bg-white/20 text-white transition-colors"
+                title="Auditoria & Solicitações"
+              >
+                <Bell className="w-5 h-5" />
+                {pendingCorrectionsCount > 0 && (
+                  <span className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-[#FFC72C] text-[#004724] font-bold text-[10px] flex items-center justify-center shadow-xs">
+                    {pendingCorrectionsCount}
+                  </span>
+                )}
+              </button>
+
+              {/* Perfil do Administrador / Proprietário */}
+              <div className="flex items-center gap-2 pl-2 border-l border-white/20">
+                <div className="w-8 h-8 rounded-full bg-[#FFC72C] text-[#004724] font-black flex items-center justify-center text-xs">
+                  AP
+                </div>
+                <div className="hidden lg:block text-left text-xs leading-tight">
+                  <span className="font-bold text-white block">Administrador Geral</span>
+                  <span className="text-white/70 text-[10px]">Proprietário Athleta</span>
+                </div>
+              </div>
             </div>
-          )}
+          </div>
         </div>
-      </section>
 
-      {/* DEPOIMENTOS */}
-      <section className="section-y bg-surface">
-        <div className="container-page">
-          <SectionTitle eyebrow="Vozes da categoria" title="Depoimentos" />
-          <div className="mt-5 max-w-3xl">
-            <DemoNotice>
-              Os depoimentos abaixo são fictícios e servem apenas como exemplo de layout. Substitua por
-              depoimentos reais, com autorização das pessoas citadas.
-            </DemoNotice>
-          </div>
-          <div className="mt-8 grid gap-5 md:grid-cols-3">
-            {depoimentos.map((d) => (
-              <figure key={d.nome} className="rounded-xl border border-border bg-card p-6 shadow-card">
-                <blockquote className="text-sm text-foreground">“{d.texto}”</blockquote>
-                <figcaption className="mt-4 flex items-center gap-3">
-                  <span className="inline-flex size-10 items-center justify-center rounded-full bg-brand/10 text-brand">
-                    <Users className="size-5" aria-hidden="true" />
-                  </span>
-                  <span>
-                    <span className="block text-sm font-semibold">{d.nome}</span>
-                    <span className="block text-xs text-muted-foreground">{d.cargo}</span>
-                  </span>
-                </figcaption>
-              </figure>
-            ))}
-          </div>
-        </div>
-      </section>
+        {/* 2. BARRA DE NAVEGAÇÃO DOS 9 MÓDULOS */}
+        <div className="bg-[#004724] border-t border-white/10">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <nav className="flex items-center gap-1 overflow-x-auto py-2 scrollbar-none text-xs font-bold">
+              {tabsConfig.map((tab) => {
+                const Icon = tab.icon;
+                const isActive = activeTab === tab.id;
 
-      {/* CTA FINAL */}
-      <section className="bg-primary py-14 text-primary-foreground">
-        <div className="container-page text-center">
-          <h2 className="text-2xl font-extrabold lg:text-3xl">
-            Fortaleça a categoria e conheça seus benefícios
-          </h2>
-          <p className="mx-auto mt-3 max-w-2xl text-primary-foreground/85">
-            Associar-se é apoiar a negociação coletiva e ter acesso a serviços pensados para quem
-            trabalha na educação.
-          </p>
-          <div className="mt-7 flex flex-col justify-center gap-3 sm:flex-row">
-            <Button asChild size="lg" className="bg-action text-action-foreground hover:bg-action/90">
-              <Link to="/quero-me-associar">Quero me associar</Link>
-            </Button>
-            <Button
-              asChild
-              size="lg"
-              variant="outline"
-              className="border-primary-foreground/40 bg-transparent text-primary-foreground hover:bg-primary-foreground/10"
-            >
-              <Link to="/contato">Entrar em contato</Link>
-            </Button>
+                return (
+                  <button
+                    key={tab.id}
+                    onClick={() => setActiveTab(tab.id)}
+                    className={`px-3.5 py-2 rounded-xl transition-all flex items-center gap-2 whitespace-nowrap ${
+                      isActive
+                        ? "bg-[#FFC72C] text-[#004724] shadow-sm font-black"
+                        : "text-white/80 hover:bg-white/10 hover:text-white"
+                    }`}
+                  >
+                    <Icon className="w-4 h-4 shrink-0" />
+                    <span>{tab.label}</span>
+                    {tab.badge !== undefined && tab.badge > 0 && (
+                      <span
+                        className={`px-1.5 py-0.2 rounded-full text-[10px] ${
+                          isActive
+                            ? "bg-[#005C30] text-white"
+                            : "bg-[#FFC72C] text-[#004724]"
+                        }`}
+                      >
+                        {tab.badge}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </nav>
           </div>
-          <p className="mt-6 flex items-center justify-center gap-2 text-xs text-primary-foreground/70">
-            <CalendarCheck className="size-4" aria-hidden="true" />
-            Protótipo com dados de demonstração — configure conteúdos reais em src/config/site.ts e src/data/demo.ts
-          </p>
         </div>
-      </section>
-    </>
+      </header>
+
+      {/* 3. CONTEÚDO PRINCIPAL DO MÓDULO ATIVO */}
+      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        {/* MÓDULO 1: VISÃO GERAL */}
+        {activeTab === "visao-geral" && (
+          <OverviewModule
+            onNavigateTab={(tab) => setActiveTab(tab as TabType)}
+            onSelectEmployee={(emp) => setProfileEmployee(emp)}
+            onSelectDayRecord={(record, emp) => handleOpenDayDetails(record, emp)}
+            selectedStoreId={selectedStoreId}
+            onStoreChange={setSelectedStoreId}
+            onOpenKiosk={() => setIsKioskActive(true)}
+          />
+        )}
+
+        {/* MÓDULO 2: FUNCIONÁRIOS */}
+        {activeTab === "funcionarios" && (
+          <EmployeesModule
+            onSelectEmployee={(emp) => setProfileEmployee(emp)}
+            selectedStoreId={selectedStoreId}
+            onStoreChange={setSelectedStoreId}
+          />
+        )}
+
+        {/* MÓDULO 3: CONTROLE SEMANAL (GRADE 7 COLUNAS) */}
+        {activeTab === "controle-semanal" && (
+          <WeeklyControlModule
+            onSelectEmployee={(emp) => setProfileEmployee(emp)}
+            onSelectDayRecord={(record, emp) => handleOpenDayDetails(record, emp)}
+            selectedStoreId={selectedStoreId}
+            onStoreChange={setSelectedStoreId}
+          />
+        )}
+
+        {/* MÓDULO 4: REGISTRO DE PONTO (ESPELHO MENSAL) */}
+        {activeTab === "registro-ponto" && (
+          <TimeRecordsModule
+            onSelectEmployee={(emp) => setProfileEmployee(emp)}
+            onSelectDayRecord={(record, emp) => handleOpenDayDetails(record, emp)}
+            selectedStoreId={selectedStoreId}
+            onStoreChange={setSelectedStoreId}
+          />
+        )}
+
+        {/* MÓDULO 5: ESCALAS */}
+        {activeTab === "escalas" && (
+          <SchedulesModule selectedStoreId={selectedStoreId} />
+        )}
+
+        {/* MÓDULO 6: LOJAS */}
+        {activeTab === "lojas" && (
+          <StoresModule
+            selectedStoreId={selectedStoreId}
+            onStoreChange={setSelectedStoreId}
+            onSelectEmployee={(emp) => setProfileEmployee(emp)}
+          />
+        )}
+
+        {/* MÓDULO 7: RELATÓRIOS */}
+        {activeTab === "relatorios" && (
+          <ReportsModule
+            selectedStoreId={selectedStoreId}
+            onSelectEmployee={(emp) => setProfileEmployee(emp)}
+          />
+        )}
+
+        {/* MÓDULO 8: AUDITORIA */}
+        {activeTab === "auditoria" && <AuditModule />}
+
+        {/* MÓDULO 9: CONFIGURAÇÕES */}
+        {activeTab === "configuracoes" && <SettingsModule />}
+      </main>
+
+      {/* 4. MODAL DE PERFIL INDIVIDUAL DO FUNCIONÁRIO */}
+      {profileEmployee && (
+        <EmployeeProfileModal
+          employee={profileEmployee}
+          onClose={() => setProfileEmployee(null)}
+          onSelectDayRecord={(rec) => {
+            handleOpenDayDetails(rec, profileEmployee);
+          }}
+        />
+      )}
+
+      {/* 5. MODAL DE DETALHES DAS MARCAÇÕES DO DIA COM FOTOS AO VIVO */}
+      {detailsRecord && (
+        <DayDetailsModal
+          record={detailsRecord}
+          employee={detailsEmployee}
+          onClose={() => {
+            setDetailsRecord(null);
+            setDetailsEmployee(null);
+          }}
+        />
+      )}
+
+      {/* 6. RODAPÉ INSTITUCIONAL */}
+      <footer className="bg-white border-t border-slate-200 py-6 text-xs text-slate-500 mt-auto">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div className="flex items-center gap-2">
+            <AthletaLogo variant="compact" />
+            <span>
+              © {new Date().getFullYear()} <strong>ATHLETA BRASIL</strong> — Sistema Homologado Portaria 671 MTE.
+            </span>
+          </div>
+
+          <div className="flex items-center gap-4 text-slate-400">
+            <span>Londrina - PR</span>
+            <span>•</span>
+            <span>Shopping Catuaí</span>
+            <span>•</span>
+            <span>Shopping Boulevard</span>
+            <span>•</span>
+            <span className="text-emerald-700 font-bold">Conexão Segura SSL</span>
+          </div>
+        </div>
+      </footer>
+    </div>
   );
 }
