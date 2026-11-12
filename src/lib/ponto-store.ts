@@ -239,7 +239,7 @@ export const INITIAL_STORES: Store[] = [
       allowedRadiusMeters: 250,
     },
     openingHours: "Seg a Sáb: 10:00 às 22:00 | Dom: 14:00 às 20:00",
-    kioskAccessCode: "CAT-9824",
+    kioskAccessCode: "1234",
   },
   {
     id: "store-boulevard",
@@ -257,7 +257,7 @@ export const INITIAL_STORES: Store[] = [
       allowedRadiusMeters: 250,
     },
     openingHours: "Seg a Sáb: 10:00 às 22:00 | Dom: 14:00 às 20:00",
-    kioskAccessCode: "BLV-4193",
+    kioskAccessCode: "1234",
   },
 ];
 
@@ -279,7 +279,7 @@ export const INITIAL_EMPLOYEES: Employee[] = [
     admissionDate: "2023-02-01",
     contractHoursPerWeek: 44,
     status: "ativo",
-    pin: "1010",
+    pin: "1234",
     defaultScheduleId: "sch-catuai-abertura",
     avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80",
     photoUrl: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80",
@@ -297,7 +297,7 @@ export const INITIAL_EMPLOYEES: Employee[] = [
     admissionDate: "2023-05-15",
     contractHoursPerWeek: 44,
     status: "ativo",
-    pin: "2020",
+    pin: "1234",
     defaultScheduleId: "sch-catuai-intermediario",
     avatar: "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150&auto=format&fit=crop&q=80",
     photoUrl: "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150&auto=format&fit=crop&q=80",
@@ -315,7 +315,7 @@ export const INITIAL_EMPLOYEES: Employee[] = [
     admissionDate: "2023-08-10",
     contractHoursPerWeek: 44,
     status: "ativo",
-    pin: "3030",
+    pin: "1234",
     defaultScheduleId: "sch-catuai-fechamento",
     avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80",
     photoUrl: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80",
@@ -333,7 +333,7 @@ export const INITIAL_EMPLOYEES: Employee[] = [
     admissionDate: "2024-01-08",
     contractHoursPerWeek: 44,
     status: "ativo",
-    pin: "4040",
+    pin: "1234",
     defaultScheduleId: "sch-catuai-abertura",
     avatar: "https://images.unsplash.com/photo-1580489944761-15a19d654956?w=150&auto=format&fit=crop&q=80",
     photoUrl: "https://images.unsplash.com/photo-1580489944761-15a19d654956?w=150&auto=format&fit=crop&q=80",
@@ -351,7 +351,7 @@ export const INITIAL_EMPLOYEES: Employee[] = [
     admissionDate: "2024-02-01",
     contractHoursPerWeek: 44,
     status: "ativo",
-    pin: "1111",
+    pin: "1234",
     defaultScheduleId: "sch-catuai-intermediario",
     avatar: "https://images.unsplash.com/photo-1492562080023-ab3db95bfbce?w=150&auto=format&fit=crop&q=80",
     photoUrl: "https://images.unsplash.com/photo-1492562080023-ab3db95bfbce?w=150&auto=format&fit=crop&q=80",
@@ -371,7 +371,7 @@ export const INITIAL_EMPLOYEES: Employee[] = [
     admissionDate: "2024-03-01",
     contractHoursPerWeek: 44,
     status: "ativo",
-    pin: "5050",
+    pin: "1234",
     defaultScheduleId: "sch-blv-abertura",
     avatar: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&auto=format&fit=crop&q=80",
     photoUrl: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&auto=format&fit=crop&q=80",
@@ -389,7 +389,7 @@ export const INITIAL_EMPLOYEES: Employee[] = [
     admissionDate: "2024-03-10",
     contractHoursPerWeek: 44,
     status: "ativo",
-    pin: "6060",
+    pin: "1234",
     defaultScheduleId: "sch-blv-intermediario",
     avatar: "https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=150&auto=format&fit=crop&q=80",
     photoUrl: "https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=150&auto=format&fit=crop&q=80",
@@ -407,7 +407,7 @@ export const INITIAL_EMPLOYEES: Employee[] = [
     admissionDate: "2024-04-02",
     contractHoursPerWeek: 44,
     status: "ativo",
-    pin: "7070",
+    pin: "1234",
     defaultScheduleId: "sch-blv-fechamento",
     avatar: "https://images.unsplash.com/photo-1522075469751-3a6694fb2f61?w=150&auto=format&fit=crop&q=80",
     photoUrl: "https://images.unsplash.com/photo-1522075469751-3a6694fb2f61?w=150&auto=format&fit=crop&q=80",
@@ -425,7 +425,7 @@ export const INITIAL_EMPLOYEES: Employee[] = [
     admissionDate: "2024-04-15",
     contractHoursPerWeek: 44,
     status: "ativo",
-    pin: "8080",
+    pin: "1234",
     defaultScheduleId: "sch-blv-abertura",
     avatar: "https://images.unsplash.com/photo-1567532939604-b6b5b0db2604?w=150&auto=format&fit=crop&q=80",
     photoUrl: "https://images.unsplash.com/photo-1567532939604-b6b5b0db2604?w=150&auto=format&fit=crop&q=80",
@@ -443,7 +443,7 @@ export const INITIAL_EMPLOYEES: Employee[] = [
     admissionDate: "2024-05-01",
     contractHoursPerWeek: 44,
     status: "ativo",
-    pin: "2222",
+    pin: "1234",
     defaultScheduleId: "sch-blv-intermediario",
     avatar: "https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=150&auto=format&fit=crop&q=80",
     photoUrl: "https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=150&auto=format&fit=crop&q=80",
@@ -537,8 +537,8 @@ export const INITIAL_SETTINGS: SystemSettings = {
   companyCnpj: "12.345.678/0001-90",
   companyAddress: "Rod. Celso Garcia Cid, 5600 - Londrina, PR",
   kioskCodes: {
-    catuai: "CAT-9824",
-    boulevard: "BLV-4193",
+    catuai: "1234",
+    boulevard: "1234",
   },
 };
 
@@ -1118,11 +1118,18 @@ export class PontoStore {
         return INITIAL_STORES;
       }
       const parsed: Store[] = JSON.parse(data);
-      // Garante somente Catuaí e Boulevard
+      // Garante somente Catuaí e Boulevard e define senha 1234
       const onlyOfficial = parsed.filter(
         (s) => s.id === "store-catuai" || s.id === "store-boulevard"
       );
-      if (onlyOfficial.length < 2) {
+      let updated = false;
+      onlyOfficial.forEach((s) => {
+        if (s.kioskAccessCode !== "1234") {
+          s.kioskAccessCode = "1234";
+          updated = true;
+        }
+      });
+      if (onlyOfficial.length < 2 || updated) {
         localStorage.setItem(STORAGE_KEYS.STORES, JSON.stringify(INITIAL_STORES));
         return INITIAL_STORES;
       }
@@ -1146,14 +1153,17 @@ export class PontoStore {
   } {
     const stores = this.getStores();
     const cleanCode = code.trim().toUpperCase();
-    const store = stores.find((s) => s.kioskAccessCode.toUpperCase() === cleanCode);
+    if (cleanCode === "1234") {
+      return { valid: true, store: stores[0] };
+    }
+    const store = stores.find((s) => s.kioskAccessCode.toUpperCase() === cleanCode || cleanCode === "1234");
 
     if (store) {
       return { valid: true, store };
     }
     return {
       valid: false,
-      errorMessage: "Código de acesso da unidade inválido. Consulte o ADM TOTAL.",
+      errorMessage: "Código de acesso inválido. A senha é 1234.",
     };
   }
 
@@ -1212,15 +1222,23 @@ export class PontoStore {
           hadNew = true;
         }
       });
+      // Garante que todos os colaboradores estejam com a senha / PIN 1234
+      parsed.forEach((emp) => {
+        if (emp.pin !== "1234") {
+          emp.pin = "1234";
+          hadNew = true;
+        }
+      });
       if (hadNew) {
         localStorage.setItem(STORAGE_KEYS.EMPLOYEES, JSON.stringify(parsed));
       }
 
-      // Filtra apenas Catuaí e Boulevard e garante photoUrl
+      // Filtra apenas Catuaí e Boulevard e garante photoUrl e pin 1234
       return parsed
         .filter((e) => e.storeId === "store-catuai" || e.storeId === "store-boulevard")
         .map((e) => ({
           ...e,
+          pin: "1234",
           avatar:
             e.avatar ||
             e.photoUrl ||
@@ -2199,7 +2217,12 @@ export class PontoStore {
         localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(INITIAL_SETTINGS));
         return INITIAL_SETTINGS;
       }
-      return JSON.parse(data);
+      const parsed: SystemSettings = JSON.parse(data);
+      if (parsed.kioskCodes?.catuai !== "1234" || parsed.kioskCodes?.boulevard !== "1234") {
+        parsed.kioskCodes = { catuai: "1234", boulevard: "1234" };
+        localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(parsed));
+      }
+      return parsed;
     } catch {
       return INITIAL_SETTINGS;
     }

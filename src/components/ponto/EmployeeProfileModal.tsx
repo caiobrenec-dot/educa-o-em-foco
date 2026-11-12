@@ -179,9 +179,9 @@ export function EmployeeProfileModal({
                     {employee.contractHoursPerWeek}h semanais
                   </span>
                   <span>•</span>
-                  <span className="inline-flex items-center gap-1">
+                  <span className="inline-flex items-center gap-1 font-mono font-bold">
                     <ShieldCheck className="w-3.5 h-3.5 text-[#FFC72C]" />
-                    PIN Totem: ••••
+                    Senha / PIN: {employee.pin || "1234"}
                   </span>
                 </div>
               </div>
