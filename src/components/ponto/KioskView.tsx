@@ -7,15 +7,21 @@ import {
   PontoStore,
   INITIAL_STORES,
   INITIAL_EMPLOYEES,
-  getLocalDateStr,
-  getLocalTimeStr,
+  PunchStageInfo,
+  getEmployeeDayStages,
 } from "../../lib/ponto-store";
 import {
-  generateCertifiedPunchPhoto,
-  calculateFaceMatch,
-  getEmployeeBiometricStudy,
-  getStandardFaceLandmarks,
-} from "../../lib/facial-biometrics";
+  useBrasiliaClock,
+  getBrasiliaDateStr,
+  getBrasiliaTimeStr,
+  getBrasiliaFullTimeStr,
+} from "../../lib/brasilia-time";
+import {
+  validateCameraFrame,
+  CameraValidationStatus,
+  FaceValidationResult,
+} from "../../lib/face-camera-validator";
+import { generateCertifiedPunchPhoto } from "../../lib/facial-biometrics";
 import { usePonto } from "../../hooks/use-ponto";
 import { AthletaLogo } from "../AthletaLogo";
 import {
@@ -31,8 +37,13 @@ import {
   ArrowLeft,
   ChevronRight,
   Sparkles,
-  ScanFace,
-  Zap,
+  LogIn,
+  LogOut,
+  Utensils,
+  RotateCcw,
+  Eye,
+  AlertTriangle,
+  RotateCw,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -41,32 +52,50 @@ interface KioskViewProps {
   defaultStoreId?: string;
 }
 
-type KioskStep = "select_employee" | "capture_photo" | "success_receipt";
+type KioskStep =
+  | "select_employee"     // 1. Lista de funcionários da loja
+  | "employee_journey"    // 2. Visão das 4 etapas e botão inteligente
+  | "camera_capture"      // 3. Câmera com detecção de rosto em tempo real
+  | "preview_photo"       // 4. Prévia para conferência antes de salvar
+  | "success_receipt";    // 5. Comprovante oficial com status das próximas etapas
 
 export function KioskView({ onExitKiosk, defaultStoreId = "store-catuai" }: KioskViewProps) {
-  const { stores, employees, records, recordPunch, refresh } = usePonto();
+  const { stores, employees, records, schedules, recordPunch, refresh } = usePonto();
 
   const safeStores = stores.length > 0 ? stores : INITIAL_STORES;
   const safeEmployees = employees.length > 0 ? employees : INITIAL_EMPLOYEES;
 
-  // Loja em uso no totem (livre para alternar entre Catuaí e Boulevard sem senhas)
+  // Loja em uso no totem (Catuaí ou Boulevard)
   const [currentStoreId, setCurrentStoreId] = useState<string>(
     defaultStoreId && defaultStoreId !== "all" ? defaultStoreId : safeStores[0]?.id || "store-catuai"
   );
   const currentStore = safeStores.find((s) => s.id === currentStoreId) || safeStores[0];
 
-  // Passo atual do fluxo (direto: Seleciona Funcionário -> Foto ao Vivo -> Comprovante)
+  // Horário Oficial de Brasília sincronizado
+  const brasiliaClock = useBrasiliaClock();
+
+  // Estados do Fluxo
   const [step, setStep] = useState<KioskStep>("select_employee");
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
+  const [targetPunchType, setTargetPunchType] = useState<PunchType>("entrada");
 
-  // Tipo de batida inteligente
-  const [selectedPunchType, setSelectedPunchType] = useState<PunchType>("entrada");
+  // Modal de confirmação antes de abrir a câmera
+  const [showConfirmModal, setShowConfirmModal] = useState<boolean>(false);
+  // Alerta de etapa fora de sequência
+  const [outOfSequenceWarning, setOutOfSequenceWarning] = useState<string | null>(null);
 
-  // WebCam e Foto ao Vivo
+  // Estados da Câmera e Detecção Facial
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const [cameraActive, setCameraActive] = useState<boolean>(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
+  const [validationResult, setValidationResult] = useState<FaceValidationResult>({
+    status: "initializing",
+    message: "INICIANDO CÂMERA... AGUARDE.",
+    isReadyForCapture: false,
+    metrics: { brightness: 0, sharpness: 0, faceDetected: false, faceCentered: false },
+  });
+  const [isCapturing, setIsCapturing] = useState<boolean>(false);
   const [capturedPhotoUrl, setCapturedPhotoUrl] = useState<string | null>(null);
 
   // Geolocalização
@@ -85,26 +114,15 @@ export function KioskView({ onExitKiosk, defaultStoreId = "store-catuai" }: Kios
     nsr: number;
     hash: string;
     typeLabel: string;
+    employeeName: string;
+    storeName: string;
+    photoUrl: string;
   } | null>(null);
 
-  // Relógio em tempo real
-  const [currentTime, setCurrentTime] = useState<Date>(new Date());
-  // Contador de retorno automático
-  const [countdown, setCountdown] = useState<number>(5);
+  // Contador de retorno automático ao início
+  const [countdown, setCountdown] = useState<number>(8);
 
-  // Estados do Estudo e Reconhecimento Facial ao Vivo
-  const [isScanning, setIsScanning] = useState<boolean>(false);
-  const [scanProgress, setScanProgress] = useState<number>(0);
-  const [scanStage, setScanStage] = useState<string>("");
-  const [scanMatchScore, setScanMatchScore] = useState<number>(99.4);
-
-  // Atualização do relógio a cada segundo
-  useEffect(() => {
-    const timer = setInterval(() => setCurrentTime(new Date()), 1000);
-    return () => clearInterval(timer);
-  }, []);
-
-  // Coleta inicial de geolocalização do tablet da loja
+  // Geolocalização do dispositivo
   useEffect(() => {
     if (!currentStore) return;
 
@@ -120,7 +138,6 @@ export function KioskView({ onExitKiosk, defaultStoreId = "store-catuai" }: Kios
           });
         },
         () => {
-          // Fallback para as coordenadas da loja cadastrada
           setGpsLocation({
             latitude: currentStore?.gpsCoords?.lat ?? -23.3444,
             longitude: currentStore?.gpsCoords?.lng ?? -51.1812,
@@ -135,39 +152,111 @@ export function KioskView({ onExitKiosk, defaultStoreId = "store-catuai" }: Kios
   }, [currentStoreId, currentStore]);
 
   // Lista de funcionários ativos daquela loja
-  const storeEmployees = safeEmployees.filter(
-    (e) => (currentStoreId === "all" ? true : e.storeId === currentStoreId) && e.status === "ativo"
-  );
+  const storeEmployees = useMemo(() => {
+    return safeEmployees.filter(
+      (e) => (currentStoreId === "all" ? true : e.storeId === currentStoreId) && e.status === "ativo"
+    );
+  }, [safeEmployees, currentStoreId]);
 
-  // Determina automaticamente o próximo tipo de marcação recomendada
-  const getNextPunchType = (empId: string): PunchType => {
-    const todayStr = getLocalDateStr();
-    const todayRecord = records.find((r) => r.employeeId === empId && r.date === todayStr);
+  // Registro de hoje do funcionário selecionado
+  const todayRecord = useMemo(() => {
+    if (!selectedEmployee) return null;
+    const todayStr = getBrasiliaDateStr();
+    return records.find((r) => r.employeeId === selectedEmployee.id && r.date === todayStr) || null;
+  }, [selectedEmployee, records]);
 
-    if (!todayRecord || !todayRecord.punches || todayRecord.punches.length === 0) {
-      return "entrada";
+  // Escala do funcionário selecionado
+  const employeeSchedule = useMemo(() => {
+    if (!selectedEmployee) return null;
+    return schedules.find((s) => s.id === selectedEmployee.defaultScheduleId) || null;
+  }, [selectedEmployee, schedules]);
+
+  // Cálculo das 4 Etapas da Jornada de Hoje
+  const dayStagesInfo = useMemo(() => {
+    if (!selectedEmployee) {
+      return {
+        stages: [],
+        nextStage: null,
+        completedCount: 0,
+        isAllCompleted: false,
+        canPunch: false,
+      };
     }
+    return getEmployeeDayStages({
+      employee: selectedEmployee,
+      dayRecord: todayRecord,
+      schedule: employeeSchedule,
+    });
+  }, [selectedEmployee, todayRecord, employeeSchedule]);
 
-    const lastPunch = todayRecord.punches[todayRecord.punches.length - 1];
-    if (lastPunch.type === "entrada") return "intervalo_saida";
-    if (lastPunch.type === "intervalo_saida") return "intervalo_retorno";
-    if (lastPunch.type === "intervalo_retorno") return "saida";
-    return "saida";
+  // Ícones específicos para as 4 etapas
+  const getStageIcon = (type: PunchType) => {
+    switch (type) {
+      case "entrada":
+        return LogIn;
+      case "intervalo_saida":
+        return Utensils;
+      case "intervalo_retorno":
+        return RotateCcw;
+      case "saida":
+        return LogOut;
+    }
   };
 
-  // 1. Ao selecionar o funcionário: VAI DIRETO PARA A FOTO COM ESTUDO FACIAL ATIVO
+  // Nomes amigáveis e completos para confirmação
+  const getStageFullName = (type: PunchType) => {
+    switch (type) {
+      case "entrada":
+        return "ENTRADA";
+      case "intervalo_saida":
+        return "SAÍDA PARA INTERVALO";
+      case "intervalo_retorno":
+        return "RETORNO DO INTERVALO";
+      case "saida":
+        return "SAÍDA FINAL";
+    }
+  };
+
+  // 1. Ao selecionar o funcionário: abre a tela com as 4 etapas da jornada
   const handleSelectEmployee = (emp: Employee) => {
     setSelectedEmployee(emp);
-    setSelectedPunchType(getNextPunchType(emp.id));
-    const match = calculateFaceMatch(emp);
-    setScanMatchScore(match.matchPercentage);
-    startCamera();
-    setStep("capture_photo");
+    setOutOfSequenceWarning(null);
+    setStep("employee_journey");
   };
 
-  // 2. Ativação da WebCam / Câmera ao Vivo
+  // 2. Ao clicar para registrar a próxima etapa
+  const handleInitiatePunch = (type: PunchType) => {
+    if (!selectedEmployee) return;
+
+    // Checagem se a etapa é a próxima esperada
+    if (dayStagesInfo.nextStage && dayStagesInfo.nextStage.type !== type) {
+      setOutOfSequenceWarning(
+        `A próxima etapa esperada é "${dayStagesInfo.nextStage.name.toUpperCase()}". Não é permitido pular marcações. Para exceções, contate o gerente.`
+      );
+      return;
+    }
+
+    setTargetPunchType(type);
+    setShowConfirmModal(true);
+  };
+
+  // 3. Confirmar e abrir câmera
+  const handleConfirmAndOpenCamera = async () => {
+    setShowConfirmModal(false);
+    setStep("camera_capture");
+    await startCamera();
+  };
+
+  // Iniciar Câmera WebCam
   const startCamera = async () => {
     setCameraError(null);
+    setValidationResult({
+      status: "initializing",
+      message: "INICIANDO CÂMERA... AGUARDE.",
+      isReadyForCapture: false,
+      metrics: { brightness: 0, sharpness: 0, faceDetected: false, faceCentered: false },
+    });
+
     try {
       if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
         const stream = await navigator.mediaDevices.getUserMedia({
@@ -178,18 +267,19 @@ export function KioskView({ onExitKiosk, defaultStoreId = "store-catuai" }: Kios
           },
           audio: false,
         });
+
         streamRef.current = stream;
         if (videoRef.current) {
           videoRef.current.srcObject = stream;
-          videoRef.current.play().catch((e) => console.log("Video play catch:", e));
+          await videoRef.current.play();
         }
         setCameraActive(true);
       } else {
-        setCameraError("Câmera não suportada neste dispositivo.");
+        setCameraError("A CÂMERA NÃO ESTÁ FUNCIONANDO CORRETAMENTE. VERIFIQUE A PERMISSÃO E TENTE NOVAMENTE.");
       }
     } catch (err) {
-      console.warn("Camera access denied or unavailable, using certified canvas:", err);
-      setCameraError("Acesso à câmera indisponível ou bloqueado.");
+      console.warn("Acesso à câmera bloqueado ou indisponível:", err);
+      setCameraError("A CÂMERA NÃO ESTÁ FUNCIONANDO CORRETAMENTE. VERIFIQUE A PERMISSÃO E TENTE NOVAMENTE.");
       setCameraActive(false);
     }
   };
@@ -212,133 +302,143 @@ export function KioskView({ onExitKiosk, defaultStoreId = "store-catuai" }: Kios
     };
   }, []);
 
-  // 3. Capturar foto, estudar feições biométricas e registrar ponto com atualização em tempo real
-  const handleCaptureAndPunch = async () => {
-    if (!selectedEmployee || !currentStore || isScanning) return;
+  // Loop contínuo de validação de câmera e detecção de rosto (a cada 150ms)
+  useEffect(() => {
+    if (step !== "camera_capture" || !cameraActive) return;
 
-    // Etapas da análise biométrica facial inteligente
-    setIsScanning(true);
-    setScanProgress(25);
-    setScanStage("Mapeando 68 marcos biométricos do rosto...");
+    let isSubscribed = true;
+    const interval = setInterval(async () => {
+      if (!isSubscribed) return;
+      if (videoRef.current) {
+        const result = await validateCameraFrame(videoRef.current);
+        if (isSubscribed) {
+          setValidationResult(result);
+        }
+      }
+    }, 150);
 
-    await new Promise((res) => setTimeout(res, 450));
-    setScanProgress(65);
-    setScanStage("Verificando vivacidade e distância pupilar (Anti-Spoofing)...");
+    return () => {
+      isSubscribed = false;
+      clearInterval(interval);
+    };
+  }, [step, cameraActive]);
 
-    await new Promise((res) => setTimeout(res, 450));
-    setScanProgress(100);
-    setScanStage(`Biometria Confirmada: ${selectedEmployee.name} (${scanMatchScore}% Match)`);
+  // 4. Capturar a foto quando o rosto estiver pronto
+  const handleCapturePhoto = async () => {
+    if (!validationResult.isReadyForCapture || !selectedEmployee || !currentStore || isCapturing) {
+      return;
+    }
 
-    await new Promise((res) => setTimeout(res, 350));
+    setIsCapturing(true);
 
-    const todayDate = getLocalDateStr();
-    const clockTime = getLocalTimeStr();
-
-    // Gera foto de alta definição com carimbo oficial MTE e análise facial
-    let photoData = "";
     try {
-      photoData = await generateCertifiedPunchPhoto({
+      const todayDate = getBrasiliaDateStr();
+      const clockTime = getBrasiliaTimeStr();
+
+      const photoData = await generateCertifiedPunchPhoto({
         employee: selectedEmployee,
         store: currentStore,
-        punchType: selectedPunchType,
+        punchType: targetPunchType,
         timeStr: clockTime,
         dateStr: todayDate.split("-").reverse().join("/"),
         videoElement: videoRef.current,
         gpsAddress: gpsLocation?.address || `${currentStore.name} • Londrina/PR`,
       });
+
+      setCapturedPhotoUrl(photoData);
+      stopCamera();
+      setStep("preview_photo");
     } catch (err) {
-      console.warn("Erro no processamento da foto biométrica:", err);
+      console.error("Erro na captura da foto:", err);
+      toast.error("Erro ao capturar foto. Tente novamente.");
+    } finally {
+      setIsCapturing(false);
     }
+  };
 
-    setCapturedPhotoUrl(photoData);
+  // 5. Confirmar a foto e SALVAR DEFINITIVAMENTE no banco de dados
+  const handleConfirmAndSavePunch = () => {
+    if (!selectedEmployee || !currentStore || !capturedPhotoUrl) return;
 
+    const clockTime = getBrasiliaTimeStr();
+    const todayDate = getBrasiliaDateStr();
+
+    // Grava no store com todas as regras de validação
     const result = recordPunch({
       employeeId: selectedEmployee.id,
       storeId: currentStoreId as "store-catuai" | "store-boulevard",
-      punchType: selectedPunchType,
-      photoUrl: photoData,
+      punchType: targetPunchType,
+      photoUrl: capturedPhotoUrl,
       location: gpsLocation || {
-        latitude: currentStore?.gpsCoords?.lat ?? -23.3421,
-        longitude: currentStore?.gpsCoords?.lng ?? -51.1872,
-        accuracy: 5,
-        address: `${currentStore?.name || "Athleta"} • ${currentStore?.city || "Londrina"} - ${currentStore?.state || "PR"}`,
+        latitude: currentStore?.gpsCoords?.lat ?? -23.3444,
+        longitude: currentStore?.gpsCoords?.lng ?? -51.1812,
+        accuracy: 10,
+        address: `${currentStore.name} • Londrina/PR`,
         inRange: true,
       },
-      deviceType:
-        currentStoreId === "store-catuai" ? "Totem Tablet Catuaí" : "Totem Tablet Boulevard",
+      deviceType: currentStoreId === "store-catuai" ? "Totem Tablet Catuaí" : "Totem Tablet Boulevard",
     });
 
-    // ATUALIZAÇÃO IMEDIATA: Força recarregar todos os dados nos outros módulos
+    // Se houve erro ou falha ao salvar: NÃO MOSTRA SUCESSO!
+    if (!result.success || !result.punch) {
+      toast.error(result.errorMessage || "Não foi possível registrar o ponto. Tente novamente.");
+      return;
+    }
+
+    // Atualiza imediatamente todo o sistema
     refresh();
 
-    stopCamera();
-    setIsScanning(false);
-
-    const typeLabel = {
-      entrada: "Entrada (Início de Expediente)",
-      intervalo_saida: "Saída para Intervalo / Almoço",
-      intervalo_retorno: "Retorno do Intervalo",
-      saida: "Saída (Fim de Expediente)",
-    }[selectedPunchType];
-
+    // Preenche dados do comprovante oficial
     setReceiptData({
-      time: result.punch.time,
-      date: new Date().toLocaleDateString("pt-BR"),
+      time: result.punch.time || clockTime,
+      date: todayDate.split("-").reverse().join("/"),
       nsr: result.punch.nsr,
       hash: result.punch.hash,
-      typeLabel,
+      typeLabel: getStageFullName(targetPunchType),
+      employeeName: selectedEmployee.name,
+      storeName: currentStore.name,
+      photoUrl: capturedPhotoUrl,
     });
 
     setStep("success_receipt");
-    setCountdown(5);
+    setCountdown(8);
   };
 
+  // Contador regressivo na tela de comprovante
   useEffect(() => {
-    if (step === "success_receipt") {
-      const interval = setInterval(() => {
-        setCountdown((c) => {
-          if (c <= 1) {
-            clearInterval(interval);
-            resetToStart();
-            return 4;
-          }
-          return c - 1;
-        });
-      }, 1000);
-      return () => clearInterval(interval);
-    }
+    if (step !== "success_receipt") return;
+    const timer = setInterval(() => {
+      setCountdown((prev) => {
+        if (prev <= 1) {
+          clearInterval(timer);
+          handleFinish();
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(timer);
   }, [step]);
 
-  const resetToStart = () => {
+  const handleFinish = () => {
     stopCamera();
     setSelectedEmployee(null);
     setCapturedPhotoUrl(null);
     setReceiptData(null);
     setStep("select_employee");
+    refresh();
   };
 
-  const formattedClock = currentTime.toLocaleTimeString("pt-BR", {
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-  });
-
-  const formattedDate = currentTime.toLocaleDateString("pt-BR", {
-    weekday: "long",
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-  });
-
   return (
-    <div className="flex-1 bg-[#062316] text-white flex flex-col justify-between select-none min-h-[calc(100vh-68px)]">
-      {/* Topo do Quiosque: Logo, Seletor de Loja Livre e Relógio */}
-      <header className="p-4 md:px-8 border-b border-[#0d4a2f] bg-[#004724]/90 backdrop-blur-md flex items-center justify-between flex-wrap gap-4">
-        <div className="flex items-center gap-4">
-          <AthletaLogo variant="white" size="md" subtitleText="TOTEM LOJA" />
+    <div className="flex-1 bg-gradient-to-b from-[#00381c] via-[#004724] to-[#012513] text-white flex flex-col min-h-[calc(100vh-68px)] select-none">
+      {/* 1. TOPO DO TOTEM COM HORÁRIO OFICIAL DE BRASÍLIA */}
+      <header className="bg-black/40 backdrop-blur-md border-b border-white/10 px-4 py-3 md:px-8 flex items-center justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <AthletaLogo variant="yellow" size="md" subtitleText="QUIOSQUE" />
+          <div className="h-7 w-px bg-white/20 hidden sm:block" />
 
-          {/* Seletor de Loja Livre (Acesso sem senhas) */}
-          <div className="flex items-center gap-1 bg-black/40 p-1 rounded-xl border border-white/10 text-xs">
+          {/* Seletor rápido de Unidade */}
+          <div className="flex items-center gap-1.5 bg-white/10 p-1 rounded-xl">
             {safeStores.map((s) => {
               const isSelected = currentStoreId === s.id;
               return (
@@ -346,9 +446,11 @@ export function KioskView({ onExitKiosk, defaultStoreId = "store-catuai" }: Kios
                   key={s.id}
                   onClick={() => {
                     setCurrentStoreId(s.id);
-                    resetToStart();
+                    if (step !== "select_employee") {
+                      handleFinish();
+                    }
                   }}
-                  className={`px-3 py-1.5 rounded-lg font-bold transition-all text-xs flex items-center gap-1.5 ${
+                  className={`px-3 py-1 rounded-lg font-bold transition-all text-xs flex items-center gap-1.5 cursor-pointer ${
                     isSelected
                       ? "bg-[#FFC72C] text-[#004724] font-black shadow-xs"
                       : "text-white/80 hover:text-white hover:bg-white/10"
@@ -362,47 +464,49 @@ export function KioskView({ onExitKiosk, defaultStoreId = "store-catuai" }: Kios
           </div>
         </div>
 
-        {/* Relógio Digital Oficial e Saída Direta sem Senha */}
+        {/* RELÓGIO OFICIAL DE BRASÍLIA VISÍVEL COM SEGUNDOS */}
         <div className="flex items-center gap-6">
           <div className="text-right">
-            <div className="font-mono text-2xl md:text-3xl font-black text-[#FFC72C] tracking-wider leading-none">
-              {formattedClock}
+            <span className="text-[10px] uppercase font-black tracking-widest text-[#FFC72C] block">
+              Horário Oficial de Brasília
+            </span>
+            <div className="font-mono text-2xl md:text-3xl font-black text-white tracking-wider leading-none mt-0.5">
+              {brasiliaClock.fullTimeStr}
             </div>
-            <div className="text-[11px] text-white/70 capitalize mt-1 font-medium">
-              {formattedDate}
+            <div className="text-[10px] text-white/70 capitalize mt-0.5 font-medium">
+              {brasiliaClock.longDateStr}
             </div>
           </div>
 
-          {/* Botão Sair Livre (Sem Senha Master) */}
           <button
             onClick={() => {
               stopCamera();
               onExitKiosk();
             }}
-            className="px-3 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-xs font-bold text-white transition-colors flex items-center gap-1.5"
-            title="Voltar ao Painel ADM Total"
+            className="px-3 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-xs font-bold text-white transition-colors flex items-center gap-1.5 cursor-pointer"
+            title="Voltar ao Painel Total"
           >
             <ArrowLeft className="w-4 h-4" />
-            <span className="hidden sm:inline">Voltar ao ADM</span>
+            <span className="hidden sm:inline">Painel ADM</span>
           </button>
         </div>
       </header>
 
-      {/* Conteúdo Principal do Fluxo */}
-      <main className="flex-1 flex items-center justify-center p-4 md:p-8">
-        {/* PASSO 1: SELECIONAR FUNCIONÁRIO (DIRETO) */}
+      {/* 2. CORPO PRINCIPAL */}
+      <main className="flex-1 flex items-center justify-center p-4 md:p-6">
+        {/* PASSO 1: SELECIONAR FUNCIONÁRIO */}
         {step === "select_employee" && (
           <div className="w-full max-w-4xl space-y-6 text-center animate-in fade-in zoom-in-95 duration-200">
             <div>
-              <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#FFC72C]/20 border border-[#FFC72C]/40 text-[#FFC72C] text-xs font-bold uppercase tracking-wider mb-2">
+              <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#FFC72C]/20 border border-[#FFC72C]/40 text-[#FFC72C] text-xs font-black uppercase tracking-wider mb-2">
                 <Sparkles className="w-3.5 h-3.5" />
-                Ponto Eletrônico Oficial • Acesso Rápido
+                Totem REP-P Portaria 671 MTE
               </span>
               <h2 className="text-2xl md:text-3xl font-black text-white tracking-tight">
                 Toque no seu nome para registrar o ponto
               </h2>
               <p className="text-sm text-white/70 mt-1">
-                Unidade: <strong className="text-[#FFC72C]">{currentStore.name}</strong> • Toque direto para abrir a câmera
+                Unidade: <strong className="text-[#FFC72C]">{currentStore.name}</strong> • Londrina/PR
               </p>
             </div>
 
@@ -417,7 +521,7 @@ export function KioskView({ onExitKiosk, defaultStoreId = "store-catuai" }: Kios
                   <button
                     key={emp.id}
                     onClick={() => handleSelectEmployee(emp)}
-                    className="group bg-gradient-to-b from-[#0b3d26] to-[#041a10] hover:from-[#005C30] hover:to-[#004724] border border-[#0d4a2f] hover:border-[#FFC72C] rounded-2xl p-4 text-center transition-all duration-200 transform hover:-translate-y-1 hover:shadow-xl active:scale-95 flex flex-col items-center justify-between"
+                    className="group bg-gradient-to-b from-[#0b3d26] to-[#041a10] hover:from-[#005C30] hover:to-[#004724] border border-[#0d4a2f] hover:border-[#FFC72C] rounded-2xl p-4 text-center transition-all duration-200 transform hover:-translate-y-1 hover:shadow-xl active:scale-95 flex flex-col items-center justify-between cursor-pointer"
                   >
                     <div className="relative mb-3">
                       <img
@@ -441,8 +545,8 @@ export function KioskView({ onExitKiosk, defaultStoreId = "store-catuai" }: Kios
                       <p className="text-[11px] text-white/60 line-clamp-1 mt-0.5">{emp.role}</p>
                     </div>
 
-                    <div className="mt-3 w-full py-1.5 rounded-lg bg-white/5 group-hover:bg-[#FFC72C] text-[11px] font-bold text-white group-hover:text-[#004724] transition-colors">
-                      Bater Ponto →
+                    <div className="mt-3 w-full py-1.5 rounded-lg bg-white/10 group-hover:bg-[#FFC72C] text-[11px] font-bold text-white group-hover:text-[#004724] transition-colors">
+                      Selecionar →
                     </div>
                   </button>
                 ))
@@ -451,46 +555,193 @@ export function KioskView({ onExitKiosk, defaultStoreId = "store-catuai" }: Kios
           </div>
         )}
 
-        {/* PASSO 2: CÂMERA AO VIVO E SELEÇÃO DE MARCAÇÃO (DIRETO SEM PIN) */}
-        {step === "capture_photo" && selectedEmployee && (
-          <div className="w-full max-w-md bg-[#0b3d26] border border-[#0d4a2f] rounded-3xl p-6 shadow-2xl space-y-5 text-center animate-in fade-in zoom-in-95 duration-200">
+        {/* PASSO 2: JORNADA DO DIA COM AS 4 ETAPAS MUITO VISÍVEIS */}
+        {step === "employee_journey" && selectedEmployee && (
+          <div className="w-full max-w-3xl bg-[#0b3d26] border border-[#0d4a2f] rounded-3xl p-6 md:p-8 shadow-2xl space-y-6 animate-in fade-in zoom-in-95 duration-200">
+            {/* Header do Funcionário */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-white/10 pb-5">
+              <div className="flex items-center gap-3.5">
+                <img
+                  src={selectedEmployee.photoUrl || selectedEmployee.avatar}
+                  alt={selectedEmployee.name}
+                  className="w-14 h-14 rounded-2xl object-cover border-2 border-[#FFC72C] shadow-md"
+                />
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-xl font-black text-white">{selectedEmployee.name}</h3>
+                    <span className="px-2 py-0.5 rounded bg-[#FFC72C] text-[#004724] text-[10px] font-black uppercase">
+                      {selectedEmployee.role}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2 text-xs text-white/70 mt-0.5">
+                    <span>{currentStore.name}</span>
+                    <span>•</span>
+                    <span>Matrícula: {selectedEmployee.matricula}</span>
+                  </div>
+                </div>
+              </div>
+
+              <button
+                onClick={() => setStep("select_employee")}
+                className="px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-xs font-bold text-white transition-colors self-start sm:self-auto cursor-pointer"
+              >
+                ← Trocar Colaborador
+              </button>
+            </div>
+
+            {/* Aviso de Etapa fora de sequência se houver */}
+            {outOfSequenceWarning && (
+              <div className="p-3.5 bg-amber-500/20 border border-amber-400/40 rounded-2xl text-xs text-amber-200 flex items-center justify-between gap-3 animate-in shake">
+                <div className="flex items-center gap-2">
+                  <AlertTriangle className="w-4 h-4 text-[#FFC72C] shrink-0" />
+                  <span>{outOfSequenceWarning}</span>
+                </div>
+                <button
+                  onClick={() => setOutOfSequenceWarning(null)}
+                  className="text-amber-200 font-bold hover:text-white px-2 py-1"
+                >
+                  ✕
+                </button>
+              </div>
+            )}
+
+            {/* AS QUATRO ETAPAS DA JORNADA MUITO VISÍVEIS */}
             <div>
-              <span className="text-xs font-bold uppercase tracking-wider text-[#FFC72C]">
-                Foto Obrigatória ao Vivo
+              <div className="flex items-center justify-between mb-3">
+                <h4 className="text-xs font-black uppercase tracking-wider text-[#FFC72C] flex items-center gap-1.5">
+                  <Clock className="w-3.5 h-3.5" />
+                  As Quatro Marcações Obrigatórias do Dia
+                </h4>
+                <span className="text-[11px] text-white/60 font-semibold">
+                  {dayStagesInfo.completedCount}/4 concluídas
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                {dayStagesInfo.stages.map((stage) => {
+                  const Icon = getStageIcon(stage.type);
+                  const isDone = stage.status === "concluido";
+                  const isNext = stage.status === "proxima";
+
+                  return (
+                    <div
+                      key={stage.type}
+                      className={`p-4 rounded-2xl border transition-all text-left flex flex-col justify-between ${
+                        isDone
+                          ? "bg-emerald-950/60 border-emerald-500/50"
+                          : isNext
+                          ? "bg-gradient-to-b from-[#14532d] to-[#052e16] border-[#FFC72C] shadow-lg ring-2 ring-[#FFC72C]/30"
+                          : "bg-white/5 border-white/10 opacity-70"
+                      }`}
+                    >
+                      <div>
+                        <div className="flex items-center justify-between mb-2">
+                          <div
+                            className={`p-2 rounded-xl ${
+                              isDone
+                                ? "bg-emerald-500 text-white"
+                                : isNext
+                                ? "bg-[#FFC72C] text-[#004724]"
+                                : "bg-white/10 text-white/60"
+                            }`}
+                          >
+                            <Icon className="w-4 h-4" />
+                          </div>
+                          <span
+                            className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider ${
+                              isDone
+                                ? "bg-emerald-400 text-emerald-950"
+                                : isNext
+                                ? "bg-[#FFC72C] text-[#004724] animate-pulse"
+                                : "bg-white/10 text-white/50"
+                            }`}
+                          >
+                            {isDone ? "Concluído" : isNext ? "Próxima" : "Aguardando"}
+                          </span>
+                        </div>
+
+                        <span className="font-bold text-white text-xs block leading-snug">
+                          {stage.name}
+                        </span>
+
+                        <div className="mt-3 space-y-1 text-[11px]">
+                          <div className="flex items-center justify-between text-white/60">
+                            <span>Previsto:</span>
+                            <span className="font-mono font-semibold text-white/80">{stage.expectedTime}</span>
+                          </div>
+
+                          <div className="flex items-center justify-between pt-1 border-t border-white/10">
+                            <span className="font-bold text-white/80">Registrado:</span>
+                            {stage.actualTime ? (
+                              <span className="font-mono font-black text-emerald-400 text-xs">
+                                {stage.actualTime} ✓
+                              </span>
+                            ) : (
+                              <span className="text-[10px] font-bold text-amber-300/80">
+                                PENDENTE
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Botão de atalho caso seja a próxima */}
+                      {isNext && (
+                        <button
+                          onClick={() => handleInitiatePunch(stage.type)}
+                          className="mt-3 w-full py-1.5 rounded-xl bg-[#FFC72C] hover:bg-[#ffcf47] text-[#004724] font-black text-xs uppercase tracking-wider transition-all shadow-md cursor-pointer"
+                        >
+                          Bater Agora →
+                        </button>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* BOTÃO INTELIGENTE DE MARCAÇÃO EM DESTAQUE */}
+            <div className="pt-2">
+              {dayStagesInfo.nextStage ? (
+                <button
+                  onClick={() => handleInitiatePunch(dayStagesInfo.nextStage!.type)}
+                  className="w-full py-4 rounded-2xl bg-gradient-to-r from-[#FFC72C] via-[#ffcf47] to-[#e6b220] hover:from-[#ffd457] hover:to-[#FFC72C] text-[#004724] font-black text-base uppercase tracking-wider transition-all transform hover:scale-[1.01] active:scale-98 shadow-xl flex items-center justify-center gap-3 cursor-pointer"
+                >
+                  <Camera className="w-5 h-5" />
+                  REGISTRAR {getStageFullName(dayStagesInfo.nextStage.type)}
+                  <ChevronRight className="w-5 h-5" />
+                </button>
+              ) : (
+                <div className="p-4 rounded-2xl bg-emerald-950/70 border border-emerald-500/60 text-center space-y-1">
+                  <CheckCircle2 className="w-6 h-6 text-emerald-400 mx-auto" />
+                  <h5 className="text-base font-black text-white">JORNADA DO DIA CONCLUÍDA!</h5>
+                  <p className="text-xs text-emerald-200">
+                    Todas as 4 marcações do dia foram realizadas com sucesso no Horário Oficial de Brasília.
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* PASSO 3: CÂMERA AO VIVO COM VALIDAÇÃO DE ROSTO EM TEMPO REAL */}
+        {step === "camera_capture" && selectedEmployee && (
+          <div className="w-full max-w-lg bg-[#0b3d26] border border-[#0d4a2f] rounded-3xl p-6 shadow-2xl space-y-4 text-center animate-in fade-in zoom-in-95 duration-200">
+            {/* Header da Câmera */}
+            <div>
+              <span className="text-[10px] font-black uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-[#FFC72C] text-[#004724]">
+                Marcação Oficial: {getStageFullName(targetPunchType)}
               </span>
-              <h2 className="text-xl font-black text-white mt-1">Olhe para a câmera</h2>
-              <p className="text-xs text-white/60 mt-0.5">
+              <h3 className="text-lg font-black text-white mt-1.5">
+                Validação de Presença Facial
+              </h3>
+              <p className="text-xs text-white/70">
                 {selectedEmployee.name} • {currentStore.name}
               </p>
             </div>
 
-            {/* Seletor do Tipo de Marcação */}
-            <div className="grid grid-cols-2 gap-2 text-xs">
-              {[
-                { type: "entrada", label: "1. Entrada" },
-                { type: "intervalo_saida", label: "2. Saída Almoço" },
-                { type: "intervalo_retorno", label: "3. Retorno Almoço" },
-                { type: "saida", label: "4. Saída Final" },
-              ].map(({ type, label }) => {
-                const isSelected = selectedPunchType === type;
-                return (
-                  <button
-                    key={type}
-                    onClick={() => setSelectedPunchType(type as PunchType)}
-                    className={`py-2 px-3 rounded-xl font-bold border transition-all text-xs ${
-                      isSelected
-                        ? "bg-[#FFC72C] text-[#004724] border-[#FFC72C] font-black shadow-md scale-102"
-                        : "bg-white/5 text-white/80 border-white/10 hover:bg-white/10"
-                    }`}
-                  >
-                    {label}
-                  </button>
-                );
-              })}
-            </div>
-
-            {/* Câmera ao Vivo com Scanner Biométrico Facial */}
-            <div className="relative aspect-4/3 rounded-3xl overflow-hidden bg-black border-2 border-[#FFC72C] shadow-2xl flex items-center justify-center group">
+            {/* CÂMERA AO VIVO COM OVERLAY INTELIGENTE */}
+            <div className="relative aspect-4/3 rounded-3xl overflow-hidden bg-black border-2 border-[#FFC72C] shadow-2xl flex items-center justify-center">
               {cameraActive ? (
                 <video
                   ref={videoRef}
@@ -500,208 +751,285 @@ export function KioskView({ onExitKiosk, defaultStoreId = "store-catuai" }: Kios
                   className="w-full h-full object-cover transform -scale-x-100"
                 />
               ) : (
-                <div className="w-full h-full bg-gradient-to-b from-[#003d20] to-[#011a0d] flex flex-col items-center justify-center p-4 relative">
-                  <div className="relative">
-                    <img
-                      src={
-                        selectedEmployee.photoUrl ||
-                        selectedEmployee.avatar ||
-                        "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=500&auto=format&fit=crop&q=80"
-                      }
-                      alt={selectedEmployee.name}
-                      className="w-36 h-36 rounded-2xl object-cover border-2 border-[#FFC72C] shadow-2xl"
-                    />
-                    <div className="absolute -bottom-2 -right-2 p-1.5 rounded-xl bg-emerald-500 text-white shadow-md">
-                      <CheckCircle2 className="w-5 h-5" />
-                    </div>
-                  </div>
-                  <p className="text-white font-black text-base mt-3">{selectedEmployee.name}</p>
-                  <p className="text-[#FFC72C] text-xs font-bold mt-0.5">Biometria 3D Cadastrada • 68 Marcos</p>
+                <div className="p-6 text-center space-y-2">
+                  <AlertCircle className="w-10 h-10 text-amber-400 mx-auto" />
+                  <p className="text-xs text-slate-300">
+                    {cameraError || "Iniciando câmera... Aguarde."}
+                  </p>
+                  <button
+                    onClick={startCamera}
+                    className="px-4 py-2 rounded-xl bg-[#005C30] hover:bg-[#004724] text-white text-xs font-bold cursor-pointer"
+                  >
+                    Tentar Novamente
+                  </button>
                 </div>
               )}
 
-              {/* OVERLAY DE ESTUDO FACIAL: HUD Holográfico com Mira e Marcos */}
-              <div className="absolute inset-0 pointer-events-none flex flex-col items-center justify-center p-6">
-                {/* Mira com cantos biométricos */}
-                <div className="relative w-48 h-56 border-2 border-[#FFC72C]/40 rounded-3xl flex items-center justify-center">
-                  {/* Cantos destacados */}
-                  <div className="absolute top-0 left-0 w-5 h-5 border-t-4 border-l-4 border-[#FFC72C]" />
-                  <div className="absolute top-0 right-0 w-5 h-5 border-t-4 border-r-4 border-[#FFC72C]" />
-                  <div className="absolute bottom-0 left-0 w-5 h-5 border-b-4 border-l-4 border-[#FFC72C]" />
-                  <div className="absolute bottom-0 right-0 w-5 h-5 border-b-4 border-r-4 border-[#FFC72C]" />
-
-                  {/* Feixe de Laser de Escaneamento Animado */}
-                  <div className="absolute inset-x-2 top-0 h-1 bg-gradient-to-r from-transparent via-[#FFC72C] to-transparent shadow-[0_0_12px_#FFC72C] animate-[bounce_2s_infinite]" />
-
-                  {/* Ponto central e elipse */}
-                  <div className="w-36 h-48 rounded-full border border-dashed border-[#FFC72C]/40 flex items-center justify-center">
-                    <ScanFace className="w-16 h-16 text-[#FFC72C]/40 animate-pulse" />
+              {/* MIRA FACIAL DINÂMICA BASEADA NO ESTADO DE VALIDAÇÃO */}
+              {cameraActive && (
+                <div className="absolute inset-0 pointer-events-none flex flex-col items-center justify-center">
+                  {/* Elipse Central de Enquadramento */}
+                  <div
+                    className={`w-48 h-60 rounded-full border-2 transition-all duration-300 flex items-center justify-center ${
+                      validationResult.status === "ready"
+                        ? "border-emerald-400 shadow-[0_0_20px_rgba(16,185,129,0.5)]"
+                        : validationResult.status === "off_center" || validationResult.status === "too_close" || validationResult.status === "too_far"
+                        ? "border-[#FFC72C] shadow-[0_0_15px_rgba(255,199,44,0.4)]"
+                        : "border-red-400/80 shadow-[0_0_15px_rgba(239,68,68,0.3)]"
+                    }`}
+                  >
+                    {/* Cantos guias */}
+                    <div className="absolute top-4 left-4 w-4 h-4 border-t-2 border-l-2 border-white/60" />
+                    <div className="absolute top-4 right-4 w-4 h-4 border-t-2 border-r-2 border-white/60" />
+                    <div className="absolute bottom-4 left-4 w-4 h-4 border-b-2 border-l-2 border-white/60" />
+                    <div className="absolute bottom-4 right-4 w-4 h-4 border-b-2 border-r-2 border-white/60" />
                   </div>
-                </div>
-              </div>
-
-              {/* Indicadores Superiores HUD */}
-              <div className="absolute top-3 left-3 right-3 flex items-center justify-between text-[11px] font-bold">
-                <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-black/70 backdrop-blur-md text-emerald-400 border border-emerald-500/30">
-                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
-                  <span>{cameraActive ? "Câmera ao Vivo" : "Biometria Ativa"}</span>
-                </div>
-
-                <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-black/70 backdrop-blur-md text-[#FFC72C] border border-[#FFC72C]/30 font-mono">
-                  <Zap className="w-3 h-3 text-[#FFC72C]" />
-                  <span>{scanMatchScore}% Match</span>
-                </div>
-              </div>
-
-              {/* Indicadores Inferiores HUD */}
-              <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between text-[11px] text-white/90 bg-black/70 backdrop-blur-md p-2 px-3 rounded-xl border border-white/10">
-                <span className="flex items-center gap-1.5 truncate">
-                  <MapPin className="w-3.5 h-3.5 text-[#FFC72C]" />
-                  {currentStore?.name || "Loja Athleta"}
-                </span>
-                <span className="text-emerald-400 font-bold shrink-0 flex items-center gap-1">
-                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
-                  Vivacidade OK
-                </span>
-              </div>
-
-              {/* TELA DE ANÁLISE BIOMÉTRICA EM PROGRESSO (QUANDO CLICA) */}
-              {isScanning && (
-                <div className="absolute inset-0 bg-black/85 backdrop-blur-md z-30 flex flex-col items-center justify-center p-6 text-center animate-in fade-in duration-150">
-                  <div className="relative mb-4">
-                    <div className="w-20 h-20 rounded-full border-4 border-[#FFC72C]/30 border-t-[#FFC72C] animate-spin flex items-center justify-center" />
-                    <ScanFace className="w-9 h-9 text-[#FFC72C] absolute inset-0 m-auto" />
-                  </div>
-
-                  <span className="text-xs font-black uppercase tracking-widest text-[#FFC72C]">
-                    Estudo Facial em Tempo Real
-                  </span>
-                  <h4 className="text-base font-black text-white mt-1 max-w-xs">{scanStage}</h4>
-
-                  {/* Barra de Progresso */}
-                  <div className="w-full max-w-xs bg-white/10 h-2.5 rounded-full overflow-hidden mt-3 border border-white/10">
-                    <div
-                      className="bg-gradient-to-r from-[#FFC72C] to-emerald-400 h-full rounded-full transition-all duration-300"
-                      style={{ width: `${scanProgress}%` }}
-                    />
-                  </div>
-                  <span className="text-[11px] text-white/60 font-mono mt-1">{scanProgress}% Concluído</span>
                 </div>
               )}
             </div>
 
-            {/* Botão de Disparo */}
-            <button
-              onClick={handleCaptureAndPunch}
-              disabled={isScanning}
-              className={`w-full py-4 rounded-2xl font-black text-base shadow-xl transition-all flex items-center justify-center gap-2 ${
-                isScanning
-                  ? "bg-slate-700 text-slate-400 cursor-not-allowed"
-                  : "bg-gradient-to-r from-[#FFC72C] via-[#FFD25E] to-[#E6A817] hover:brightness-110 active:scale-98 text-[#004724] shadow-[#FFC72C]/20 hover:shadow-2xl"
+            {/* BANNER DINÂMICO DE FEEDBACK / ORIENTAÇÃO */}
+            <div
+              className={`p-3 rounded-2xl text-xs font-bold border transition-colors flex items-center justify-center gap-2 ${
+                validationResult.status === "ready"
+                  ? "bg-emerald-500/20 border-emerald-400 text-emerald-200"
+                  : validationResult.status === "no_face"
+                  ? "bg-red-500/20 border-red-400 text-red-200"
+                  : validationResult.status === "black_screen" || validationResult.status === "dark_screen"
+                  ? "bg-amber-500/20 border-amber-400 text-amber-200"
+                  : "bg-white/10 border-white/20 text-white/90"
               }`}
             >
-              {isScanning ? (
-                <>
-                  <RefreshCw className="w-5 h-5 animate-spin" />
-                  Analisando Feições...
-                </>
+              {validationResult.status === "ready" ? (
+                <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
               ) : (
-                <>
-                  <ScanFace className="w-6 h-6 text-[#004724]" />
-                  Escanear Rosto & Registrar Ponto
-                </>
+                <AlertCircle className="w-4 h-4 text-amber-300 shrink-0" />
               )}
-            </button>
-
-            <button
-              onClick={resetToStart}
-              disabled={isScanning}
-              className="text-xs text-white/60 hover:text-white underline"
-            >
-              Trocar de colaborador
-            </button>
-          </div>
-        )}
-
-        {/* PASSO 3: COMPROVANTE DIGITAL OFICIAL DE PONTO E RETORNO AUTOMÁTICO */}
-        {step === "success_receipt" && receiptData && selectedEmployee && (
-          <div className="w-full max-w-md bg-white text-slate-900 rounded-3xl p-6 shadow-2xl border-4 border-[#005C30] space-y-5 text-center animate-in fade-in zoom-in-95 duration-200">
-            <div className="w-16 h-16 rounded-full bg-emerald-100 border-2 border-emerald-500 text-emerald-600 flex items-center justify-center mx-auto">
-              <CheckCircle2 className="w-10 h-10" />
+              <span>{validationResult.message}</span>
             </div>
 
-            <div>
-              <span className="text-xs font-black uppercase tracking-widest text-[#005C30]">
-                Marcação Registrada com Sucesso!
-              </span>
-              <h3 className="text-2xl font-black text-slate-900 mt-1">
-                {selectedEmployee.name}
-              </h3>
-              <p className="text-sm font-semibold text-emerald-700 mt-0.5">
-                {receiptData.typeLabel}
-              </p>
-            </div>
-
-            <div className="flex items-center gap-4 p-3 bg-slate-50 border border-slate-200 rounded-2xl text-left">
-              {capturedPhotoUrl && (
-                <img
-                  src={capturedPhotoUrl}
-                  alt="Foto capturada"
-                  className="w-20 h-20 rounded-xl object-cover border border-[#005C30] shadow-xs shrink-0"
-                />
-              )}
-              <div className="text-xs space-y-1">
-                <div>
-                  <span className="text-slate-400 block text-[10px] uppercase font-bold">
-                    Horário Oficial
-                  </span>
-                  <span className="font-mono text-lg font-black text-[#005C30]">
-                    {receiptData.time}
-                  </span>
-                </div>
-                <div>
-                  <span className="text-slate-400 block text-[10px] uppercase font-bold">
-                    Unidade
-                  </span>
-                  <span className="font-semibold text-slate-700">
-                    {currentStore.name}
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            <div className="p-3 bg-slate-100 rounded-xl text-[10px] text-slate-500 font-mono text-left space-y-1 border border-slate-200">
-              <p>NSR: #{receiptData.nsr}</p>
-              <p className="truncate">Hash Criptográfico: {receiptData.hash}</p>
-              <p>Dispositivo: Totem Quiosque Athleta ({currentStore.name})</p>
-              <p>Data: {receiptData.date}</p>
-            </div>
-
-            <div className="pt-2 border-t border-slate-200">
-              <p className="text-xs text-slate-600 font-medium">
-                Retornando à tela inicial em{" "}
-                <strong className="text-[#005C30] font-black text-sm">{countdown}s</strong>
-              </p>
+            {/* BOTÕES DE AÇÃO */}
+            <div className="flex items-center gap-3 pt-1">
               <button
-                onClick={resetToStart}
-                className="mt-2 w-full py-2.5 rounded-xl bg-[#005C30] hover:bg-[#004724] text-white text-xs font-bold transition-colors"
+                onClick={() => {
+                  stopCamera();
+                  setStep("employee_journey");
+                }}
+                className="flex-1 py-3 rounded-2xl bg-white/10 hover:bg-white/20 text-white font-bold text-xs transition-colors cursor-pointer"
               >
-                Concluir agora (Próximo Colaborador)
+                Voltar
+              </button>
+
+              <button
+                onClick={handleCapturePhoto}
+                disabled={!validationResult.isReadyForCapture || isCapturing}
+                className={`flex-2 py-3.5 rounded-2xl font-black text-xs uppercase tracking-wider transition-all flex items-center justify-center gap-2 cursor-pointer shadow-lg ${
+                  validationResult.isReadyForCapture && !isCapturing
+                    ? "bg-[#FFC72C] hover:bg-[#ffcf47] text-[#004724] transform hover:scale-102 active:scale-98"
+                    : "bg-white/10 text-white/40 cursor-not-allowed border border-white/10"
+                }`}
+              >
+                <Camera className="w-4 h-4" />
+                {isCapturing
+                  ? "Capturando..."
+                  : validationResult.isReadyForCapture
+                  ? "Capturar Foto do Ponto"
+                  : "Aguardando Rosto Humano..."}
               </button>
             </div>
           </div>
         )}
+
+        {/* PASSO 4: PRÉVIA PARA CONFERÊNCIA ANTES DE SALVAR */}
+        {step === "preview_photo" && selectedEmployee && capturedPhotoUrl && (
+          <div className="w-full max-w-md bg-[#0b3d26] border border-[#0d4a2f] rounded-3xl p-6 shadow-2xl space-y-4 text-center animate-in fade-in zoom-in-95 duration-200">
+            <div>
+              <span className="text-[10px] font-black uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-emerald-400 text-emerald-950">
+                Conferência da Foto
+              </span>
+              <h3 className="text-xl font-black text-white mt-1">
+                Confirme seu Registro de Ponto
+              </h3>
+              <p className="text-xs text-white/70">
+                Verifique a foto capturada antes de confirmar o registro
+              </p>
+            </div>
+
+            {/* Imagem Capturada */}
+            <div className="relative aspect-4/3 rounded-2xl overflow-hidden bg-black border-2 border-emerald-400 shadow-xl mx-auto">
+              <img
+                src={capturedPhotoUrl}
+                alt="Foto do Ponto"
+                className="w-full h-full object-cover"
+              />
+              <span className="absolute top-2 right-2 px-2 py-0.5 rounded-full bg-emerald-600 text-white text-[9px] font-black uppercase">
+                Rosto Validado ✓
+              </span>
+            </div>
+
+            {/* Detalhes do Registro que será salvo */}
+            <div className="p-3 bg-white/5 rounded-2xl border border-white/10 text-xs text-left space-y-1">
+              <div className="flex justify-between">
+                <span className="text-white/60">Etapa:</span>
+                <span className="font-bold text-[#FFC72C]">{getStageFullName(targetPunchType)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-white/60">Colaborador:</span>
+                <span className="font-semibold text-white">{selectedEmployee.name}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-white/60">Horário de Brasília:</span>
+                <span className="font-mono font-bold text-white">{brasiliaClock.fullTimeStr}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-white/60">Localização:</span>
+                <span className="text-white/80 truncate max-w-[200px]">{currentStore.name}</span>
+              </div>
+            </div>
+
+            {/* Botões de Decisão */}
+            <div className="grid grid-cols-2 gap-3 pt-2">
+              <button
+                onClick={async () => {
+                  setCapturedPhotoUrl(null);
+                  setStep("camera_capture");
+                  await startCamera();
+                }}
+                className="py-3 rounded-2xl bg-white/10 hover:bg-white/20 text-white font-bold text-xs transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
+              >
+                <RotateCw className="w-3.5 h-3.5" />
+                Tirar Outra Foto
+              </button>
+
+              <button
+                onClick={handleConfirmAndSavePunch}
+                className="py-3 rounded-2xl bg-[#005C30] hover:bg-[#004724] text-white font-black text-xs uppercase tracking-wider transition-all transform hover:scale-102 active:scale-98 shadow-lg flex items-center justify-center gap-1.5 cursor-pointer border border-[#FFC72C]/40"
+              >
+                <CheckCircle2 className="w-4 h-4 text-[#FFC72C]" />
+                Confirmar Registro
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* PASSO 5: COMPROVANTE OFICIAL DE SUCESSO (COM PRÓXIMAS ETAPAS) */}
+        {step === "success_receipt" && receiptData && selectedEmployee && (
+          <div className="w-full max-w-lg bg-[#0b3d26] border border-[#0d4a2f] rounded-3xl p-6 md:p-8 shadow-2xl space-y-5 text-center animate-in fade-in zoom-in-95 duration-200">
+            <div className="space-y-1">
+              <div className="w-14 h-14 rounded-full bg-emerald-500 text-white flex items-center justify-center mx-auto shadow-lg">
+                <CheckCircle2 className="w-8 h-8" />
+              </div>
+              <span className="text-[11px] font-black uppercase tracking-widest text-[#FFC72C] block pt-2">
+                Portaria 671/2021 MTE • REP-P
+              </span>
+              <h2 className="text-2xl font-black text-white">
+                MARCAÇÃO REALIZADA COM SUCESSO!
+              </h2>
+            </div>
+
+            {/* Dados do Comprovante */}
+            <div className="bg-white/5 rounded-2xl p-4 border border-white/10 text-xs text-left space-y-2">
+              <div className="flex items-center justify-between pb-2 border-b border-white/10">
+                <span className="text-white/60">Tipo de Marcação:</span>
+                <span className="font-black text-[#FFC72C] text-sm uppercase">{receiptData.typeLabel}</span>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2 text-[11px]">
+                <div>
+                  <span className="text-white/50 block">Funcionário:</span>
+                  <span className="font-bold text-white block">{receiptData.employeeName}</span>
+                </div>
+                <div>
+                  <span className="text-white/50 block">Unidade:</span>
+                  <span className="font-bold text-white block">{receiptData.storeName}</span>
+                </div>
+                <div>
+                  <span className="text-white/50 block">Data Oficial:</span>
+                  <span className="font-mono font-bold text-white block">{receiptData.date}</span>
+                </div>
+                <div>
+                  <span className="text-white/50 block">Horário Oficial de Brasília:</span>
+                  <span className="font-mono font-bold text-emerald-400 text-xs block">{receiptData.time}</span>
+                </div>
+              </div>
+
+              <div className="pt-2 border-t border-white/10 text-[10px] text-white/50 font-mono">
+                NSR Oficial: #{receiptData.nsr} • Hash: {receiptData.hash.slice(0, 24)}...
+              </div>
+            </div>
+
+            {/* Visão Rápida das Próximas Etapas */}
+            <div className="p-3 bg-black/30 rounded-2xl text-left text-xs space-y-2">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-white/70 block">
+                Status Atualizado da sua Jornada:
+              </span>
+              <div className="grid grid-cols-4 gap-1 text-center">
+                {dayStagesInfo.stages.map((st) => (
+                  <div
+                    key={st.type}
+                    className={`p-1.5 rounded-lg text-[10px] ${
+                      st.isCompleted
+                        ? "bg-emerald-500/30 text-emerald-200 font-bold"
+                        : st.isNext
+                        ? "bg-[#FFC72C]/20 text-[#FFC72C] font-bold"
+                        : "bg-white/5 text-white/40"
+                    }`}
+                  >
+                    <span className="block truncate">{st.shortName}</span>
+                    <span>{st.actualTime || "Aguardando"}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Botão de Fechamento */}
+            <button
+              onClick={handleFinish}
+              className="w-full py-3.5 rounded-2xl bg-[#FFC72C] hover:bg-[#ffcf47] text-[#004724] font-black text-xs uppercase tracking-wider transition-all transform hover:scale-102 active:scale-98 shadow-lg cursor-pointer"
+            >
+              Concluir ({countdown}s)
+            </button>
+          </div>
+        )}
       </main>
 
-      {/* Rodapé Institucional do Quiosque */}
-      <footer className="p-3 text-center border-t border-[#0d4a2f] bg-[#00361c] text-[11px] text-white/50 flex items-center justify-between px-6 flex-wrap gap-2">
-        <span>
-          ATHLETA PONTO • Dispositivo da Unidade
-        </span>
-        <span className="text-[#FFC72C] font-semibold">
-          Modo Livre de Senhas Ativo para Testes
-        </span>
-      </footer>
+      {/* MODAL DE CONFIRMAÇÃO PRÉVIA ANTES DE ABRIR A CÂMERA */}
+      {showConfirmModal && selectedEmployee && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-xs animate-in fade-in duration-200">
+          <div className="bg-[#0b3d26] border border-[#0d4a2f] rounded-3xl p-6 max-w-sm w-full shadow-2xl text-center space-y-4">
+            <div className="w-12 h-12 rounded-full bg-[#FFC72C]/20 text-[#FFC72C] flex items-center justify-center mx-auto">
+              <Clock className="w-6 h-6" />
+            </div>
+
+            <div>
+              <span className="text-[10px] font-black uppercase tracking-wider text-white/60 block">
+                Confirmação de Registro
+              </span>
+              <h4 className="text-lg font-black text-white mt-1">
+                Você está prestes a registrar sua {getStageFullName(targetPunchType)}. Confirma?
+              </h4>
+              <p className="text-xs text-white/70 mt-1">
+                {selectedEmployee.name} • {brasiliaClock.fullTimeStr} (Horário de Brasília)
+              </p>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3 pt-2">
+              <button
+                onClick={() => setShowConfirmModal(false)}
+                className="py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white font-bold text-xs transition-colors cursor-pointer"
+              >
+                Voltar
+              </button>
+              <button
+                onClick={handleConfirmAndOpenCamera}
+                className="py-2.5 rounded-xl bg-[#FFC72C] hover:bg-[#ffcf47] text-[#004724] font-black text-xs uppercase tracking-wider transition-all shadow-md cursor-pointer"
+              >
+                Abrir Câmera →
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

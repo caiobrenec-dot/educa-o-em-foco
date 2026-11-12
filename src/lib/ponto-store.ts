@@ -5,6 +5,21 @@
  */
 
 import { generateDemoBiometricSelfie } from "./facial-biometrics";
+import {
+  getBrasiliaDate,
+  getBrasiliaDateStr,
+  getBrasiliaTimeStr,
+  getBrasiliaFullTimeStr,
+  formatBrasiliaDateLong,
+} from "./brasilia-time";
+
+export {
+  getBrasiliaDate,
+  getBrasiliaDateStr,
+  getBrasiliaTimeStr,
+  getBrasiliaFullTimeStr,
+  formatBrasiliaDateLong,
+};
 
 export type RoleType =
   | "Gerente Geral"
@@ -573,19 +588,104 @@ export function formatMinutesHuman(totalMinutes: number): string {
   return `${sign}${h}h ${String(m).padStart(2, "0")}m`;
 }
 
-// Retorna a data local (YYYY-MM-DD) sem distorção de fuso horário UTC
-export function getLocalDateStr(date: Date = new Date()): string {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
+// Retorna a data no Horário Oficial de Brasília (America/Sao_Paulo, UTC-3) no formato YYYY-MM-DD
+export function getLocalDateStr(date: Date = getBrasiliaDate()): string {
+  return getBrasiliaDateStr(date);
 }
 
-// Retorna o horário local (HH:mm)
-export function getLocalTimeStr(date: Date = new Date()): string {
-  const hours = String(date.getHours()).padStart(2, "0");
-  const minutes = String(date.getMinutes()).padStart(2, "0");
-  return `${hours}:${minutes}`;
+// Retorna o horário no Horário Oficial de Brasília (America/Sao_Paulo, UTC-3) no formato HH:mm
+export function getLocalTimeStr(date: Date = getBrasiliaDate()): string {
+  return getBrasiliaTimeStr(date);
+}
+
+export interface PunchStageInfo {
+  type: PunchType;
+  name: string;
+  shortName: string;
+  stepNumber: number; // 1, 2, 3, 4
+  expectedTime: string;
+  actualTime: string | null;
+  status: "concluido" | "proxima" | "aguardando";
+  punch: Punch | null;
+  isCompleted: boolean;
+  isNext: boolean;
+}
+
+export function getEmployeeDayStages(params: {
+  employee: Employee;
+  dayRecord?: DayTimeRecord | null;
+  schedule?: Schedule | null;
+}): {
+  stages: PunchStageInfo[];
+  nextStage: PunchStageInfo | null;
+  completedCount: number;
+  isAllCompleted: boolean;
+  canPunch: boolean;
+} {
+  const { employee, dayRecord, schedule } = params;
+  const punches = dayRecord?.punches || [];
+
+  const expectedEntry = dayRecord?.scheduledEntry || schedule?.entryTime || "09:45";
+  const expectedBreakStart = schedule?.breakStartTime || "13:30";
+  const expectedBreakEnd = schedule?.breakEndTime || "14:30";
+  const expectedExit = dayRecord?.scheduledExit || schedule?.exitTime || "18:05";
+
+  const stageDefs: { type: PunchType; name: string; shortName: string; stepNumber: number; expectedTime: string }[] = [
+    { type: "entrada", name: "1. Entrada", shortName: "Entrada", stepNumber: 1, expectedTime: expectedEntry },
+    { type: "intervalo_saida", name: "2. Saída para Intervalo", shortName: "Saída Almoço", stepNumber: 2, expectedTime: expectedBreakStart },
+    { type: "intervalo_retorno", name: "3. Retorno do Intervalo", shortName: "Retorno Almoço", stepNumber: 3, expectedTime: expectedBreakEnd },
+    { type: "saida", name: "4. Saída Final", shortName: "Saída Final", stepNumber: 4, expectedTime: expectedExit },
+  ];
+
+  let foundNext = false;
+  let nextStage: PunchStageInfo | null = null;
+  let completedCount = 0;
+
+  const stages: PunchStageInfo[] = stageDefs.map((def) => {
+    const existingPunch = punches.find((p) => p.type === def.type) || null;
+    const isCompleted = !!existingPunch;
+
+    let status: "concluido" | "proxima" | "aguardando" = "aguardando";
+    let isNext = false;
+
+    if (isCompleted) {
+      status = "concluido";
+      completedCount++;
+    } else if (!foundNext) {
+      status = "proxima";
+      isNext = true;
+      foundNext = true;
+    } else {
+      status = "aguardando";
+    }
+
+    const stageObj: PunchStageInfo = {
+      type: def.type,
+      name: def.name,
+      shortName: def.shortName,
+      stepNumber: def.stepNumber,
+      expectedTime: def.expectedTime,
+      actualTime: existingPunch ? existingPunch.time : null,
+      status,
+      punch: existingPunch,
+      isCompleted,
+      isNext,
+    };
+
+    if (isNext) {
+      nextStage = stageObj;
+    }
+
+    return stageObj;
+  });
+
+  return {
+    stages,
+    nextStage,
+    completedCount,
+    isAllCompleted: completedCount === 4,
+    canPunch: !foundNext ? false : true,
+  };
 }
 
 // Retorna as datas da semana (Segunda a Domingo)
@@ -1566,111 +1666,154 @@ export class PontoStore {
     photoUrl: string;
     location?: { latitude: number; longitude: number; accuracy: number; address: string; inRange: boolean };
     deviceType?: "Totem Tablet Catuaí" | "Totem Tablet Boulevard" | "Computador da Loja";
-  }): { success: boolean; punch: Punch; record: DayTimeRecord } {
-    const now = new Date();
-    const dateStr = getLocalDateStr(now);
-    const timeStr = getLocalTimeStr(now);
+  }): { success: boolean; punch?: Punch; record?: DayTimeRecord; errorMessage?: string } {
+    try {
+      const now = getBrasiliaDate();
+      const dateStr = getBrasiliaDateStr(now);
+      const timeStr = getBrasiliaTimeStr(now);
 
-    const records = this.getDayRecords();
-    const employees = this.getEmployees();
-    const employee = employees.find((e) => e.id === params.employeeId);
-    const employeeName = employee ? employee.name : "Funcionário";
+      const records = this.getDayRecords();
+      const employees = this.getEmployees();
+      const employee = employees.find((e) => e.id === params.employeeId);
+      const employeeName = employee ? employee.name : "Funcionário";
 
-    let dayRecord = records.find((r) => r.employeeId === params.employeeId && r.date === dateStr);
+      const schedules = this.getSchedules();
+      const empSchedule = employee ? schedules.find((s) => s.id === employee.defaultScheduleId) : null;
 
-    if (!dayRecord) {
-      dayRecord = {
-        id: `rec-${params.employeeId}-${dateStr}`,
-        employeeId: params.employeeId,
-        storeId: params.storeId,
-        date: dateStr,
-        dayOfWeek: now.getDay(),
-        punches: [],
-        scheduledEntry: "09:45",
-        scheduledExit: "18:05",
-        scheduledBreak: "13:30 - 14:30",
-        isDayOff: false,
-        isVacationOrLeave: false,
-        status: "presente",
-        totalWorkedMinutes: 0,
-        expectedWorkedMinutes: 440,
-        balanceMinutes: 0,
-        delayMinutes: 0,
-        extraMinutes: 0,
-        earlyExitMinutes: 0,
-      };
-      records.push(dayRecord);
-    }
+      let dayRecord = records.find((r) => r.employeeId === params.employeeId && r.date === dateStr);
 
-    const nsr = 300000 + Math.floor(Math.random() * 600000);
-    const hash = `sha256-athleta-${Date.now()}-${params.employeeId}`;
-
-    const newPunch: Punch = {
-      id: `p-${Date.now()}`,
-      type: params.punchType,
-      timestamp: now.toISOString(),
-      time: timeStr,
-      photoUrl: params.photoUrl,
-      location: params.location || {
-        latitude: params.storeId === "store-catuai" ? -23.3421 : -23.3089,
-        longitude: params.storeId === "store-catuai" ? -51.1872 : -51.1448,
-        accuracy: 5,
-        address: params.storeId === "store-catuai" ? "Shopping Catuaí - Loja Athleta" : "Shopping Boulevard - Loja Athleta",
-        inRange: true,
-      },
-      device: {
-        type: params.deviceType || (params.storeId === "store-catuai" ? "Totem Tablet Catuaí" : "Totem Tablet Boulevard"),
-        ip: "192.168.1.100",
-        userAgent: "AthletaKiosk/2.0 (Tablet Fixo)",
-      },
-      nsr,
-      hash,
-    };
-
-    dayRecord.punches.push(newPunch);
-    this.recalculateRecordStatus(dayRecord);
-    this.saveDayRecords(records);
-
-    // Se concluiu a saída e houve saldo, atualiza o Banco de Horas
-    if (params.punchType === "saida" && dayRecord.balanceMinutes !== 0) {
-      const summary = this.getEmployeeBankSummary(params.employeeId);
-      const balanceAfter = summary.currentBalanceMinutes + dayRecord.balanceMinutes;
-      const bankList = this.getBankOfHoursEntries();
-
-      bankList.push({
-        id: `bkh-real-${Date.now()}`,
-        employeeId: params.employeeId,
-        storeId: params.storeId,
-        date: dateStr,
-        type: dayRecord.balanceMinutes > 0 ? "credito" : "debito",
-        minutes: Math.abs(dayRecord.balanceMinutes),
-        balanceAfterMinutes: balanceAfter,
-        reason: dayRecord.balanceMinutes > 0 ? "Horas extras do dia" : "Diferença negativa de jornada",
-        author: "Sistema Automático Quiosque",
-        createdAt: new Date().toISOString(),
+      // Validação das 4 etapas da jornada:
+      const stagesInfo = getEmployeeDayStages({
+        employee: employee || ({ id: params.employeeId, name: employeeName } as any),
+        dayRecord: dayRecord || null,
+        schedule: empSchedule,
       });
-      this.saveBankOfHoursEntries(bankList);
+
+      // 1. Não permitir duplicações acidentais da mesma etapa no mesmo dia
+      const existingSamePunch = dayRecord?.punches.find((p) => p.type === params.punchType);
+      if (existingSamePunch) {
+        const typeNames: Record<PunchType, string> = {
+          entrada: "ENTRADA",
+          intervalo_saida: "SAÍDA PARA INTERVALO",
+          intervalo_retorno: "RETORNO DO INTERVALO",
+          saida: "SAÍDA FINAL",
+        };
+        return {
+          success: false,
+          errorMessage: `A marcação de '${typeNames[params.punchType]}' já foi realizada hoje às ${existingSamePunch.time}. Não é permitido duplicar o registro.`,
+        };
+      }
+
+      // 2. Não permitir pular etapas da jornada
+      if (stagesInfo.nextStage && stagesInfo.nextStage.type !== params.punchType) {
+        return {
+          success: false,
+          errorMessage: `Etapa fora de sequência! A próxima marcação esperada para hoje é '${stagesInfo.nextStage.name.toUpperCase()}'. Não é permitido pular etapas.`,
+        };
+      }
+
+      if (!dayRecord) {
+        dayRecord = {
+          id: `rec-${params.employeeId}-${dateStr}`,
+          employeeId: params.employeeId,
+          storeId: params.storeId,
+          date: dateStr,
+          dayOfWeek: now.getDay(),
+          punches: [],
+          scheduledEntry: empSchedule?.entryTime || "09:45",
+          scheduledExit: empSchedule?.exitTime || "18:05",
+          scheduledBreak: empSchedule ? `${empSchedule.breakStartTime} - ${empSchedule.breakEndTime}` : "13:30 - 14:30",
+          isDayOff: false,
+          isVacationOrLeave: false,
+          status: "presente",
+          totalWorkedMinutes: 0,
+          expectedWorkedMinutes: 440,
+          balanceMinutes: 0,
+          delayMinutes: 0,
+          extraMinutes: 0,
+          earlyExitMinutes: 0,
+        };
+        records.push(dayRecord);
+      }
+
+      const nsr = 300000 + Math.floor(Math.random() * 600000);
+      const hash = `sha256-athleta-${Date.now()}-${params.employeeId}`;
+
+      const newPunch: Punch = {
+        id: `p-${Date.now()}`,
+        type: params.punchType,
+        timestamp: now.toISOString(),
+        time: timeStr,
+        photoUrl: params.photoUrl,
+        location: params.location || {
+          latitude: params.storeId === "store-catuai" ? -23.3421 : -23.3089,
+          longitude: params.storeId === "store-catuai" ? -51.1872 : -51.1448,
+          accuracy: 5,
+          address: params.storeId === "store-catuai" ? "Shopping Catuaí - Loja Athleta" : "Shopping Boulevard - Loja Athleta",
+          inRange: true,
+        },
+        device: {
+          type: params.deviceType || (params.storeId === "store-catuai" ? "Totem Tablet Catuaí" : "Totem Tablet Boulevard"),
+          ip: "192.168.1.100",
+          userAgent: "AthletaKiosk/2.0 (Tablet Fixo)",
+        },
+        nsr,
+        hash,
+      };
+
+      dayRecord.punches.push(newPunch);
+      this.recalculateRecordStatus(dayRecord);
+      this.saveDayRecords(records);
+
+      // Se concluiu a saída e houve saldo, atualiza o Banco de Horas
+      if (params.punchType === "saida" && dayRecord.balanceMinutes !== 0) {
+        const summary = this.getEmployeeBankSummary(params.employeeId);
+        const balanceAfter = summary.currentBalanceMinutes + dayRecord.balanceMinutes;
+        const bankList = this.getBankOfHoursEntries();
+
+        bankList.push({
+          id: `bkh-real-${Date.now()}`,
+          employeeId: params.employeeId,
+          storeId: params.storeId,
+          date: dateStr,
+          type: dayRecord.balanceMinutes > 0 ? "credito" : "debito",
+          minutes: Math.abs(dayRecord.balanceMinutes),
+          balanceAfterMinutes: balanceAfter,
+          reason: dayRecord.balanceMinutes > 0 ? "Horas extras do dia" : "Diferença negativa de jornada",
+          author: "Sistema Automático Quiosque",
+          createdAt: now.toISOString(),
+        });
+        this.saveBankOfHoursEntries(bankList);
+      }
+
+      const typeLabel = {
+        entrada: "Entrada",
+        intervalo_saida: "Saída para Intervalo",
+        intervalo_retorno: "Retorno do Intervalo",
+        saida: "Saída",
+      }[params.punchType];
+
+      this.addAuditLog({
+        actionType: "registro_ponto_quiosque",
+        title: `${typeLabel} — ${employeeName}`,
+        details: `Horário oficial de Brasília: ${timeStr} | Loja: ${params.storeId} | Selfie capturada ao vivo | NSR: #${nsr}`,
+        employeeId: params.employeeId,
+        employeeName,
+        storeId: params.storeId,
+        authorName: "Totem Quiosque Loja",
+        newValue: `${typeLabel} às ${timeStr}`,
+      });
+
+      this.notifySubscribers();
+
+      return { success: true, punch: newPunch, record: dayRecord };
+    } catch (err: any) {
+      console.error("Erro fatal ao salvar registro de ponto:", err);
+      return {
+        success: false,
+        errorMessage: "Falha técnica ao salvar no banco de dados. Tente novamente.",
+      };
     }
-
-    const typeLabel = {
-      entrada: "Entrada",
-      intervalo_saida: "Saída para Intervalo",
-      intervalo_retorno: "Retorno do Intervalo",
-      saida: "Saída",
-    }[params.punchType];
-
-    this.addAuditLog({
-      actionType: "registro_ponto_quiosque",
-      title: `${typeLabel} — ${employeeName}`,
-      details: `Horário oficial: ${timeStr} | Loja: ${params.storeId} | Selfie capturada ao vivo | NSR: #${nsr}`,
-      employeeId: params.employeeId,
-      employeeName,
-      storeId: params.storeId,
-      authorName: "Totem Quiosque Loja",
-      newValue: `${typeLabel} às ${timeStr}`,
-    });
-
-    return { success: true, punch: newPunch, record: dayRecord };
   }
 
   // Recalcular métricas diárias

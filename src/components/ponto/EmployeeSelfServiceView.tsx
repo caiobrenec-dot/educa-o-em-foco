@@ -10,7 +10,15 @@ import {
   INITIAL_STORES,
   INITIAL_SCHEDULES,
   getLocalDateStr,
+  getEmployeeDayStages,
+  PunchStageInfo,
 } from "../../lib/ponto-store";
+import {
+  useBrasiliaClock,
+  getBrasiliaDateStr,
+  getBrasiliaTimeStr,
+  formatBrasiliaDateLong,
+} from "../../lib/brasilia-time";
 import { getEmployeeBiometricStudy } from "../../lib/facial-biometrics";
 import { FaceMeshVisualizer } from "./FaceMeshVisualizer";
 import { usePonto } from "../../hooks/use-ponto";
@@ -35,6 +43,11 @@ import {
   User,
   MapPin,
   Sparkles,
+  LogIn,
+  LogOut,
+  Utensils,
+  RotateCcw,
+  AlertTriangle,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -80,23 +93,12 @@ export function EmployeeSelfServiceView({
   const [corrTime, setCorrTime] = useState("18:05");
   const [corrReason, setCorrReason] = useState("");
 
+  const brasiliaClock = useBrasiliaClock();
   const todayStr = getLocalDateStr();
 
   const formattedTodayDate = useMemo(() => {
-    try {
-      const [y, m, d] = todayStr.split("-").map(Number);
-      const dateObj = new Date(y, m - 1, d);
-      const formatted = dateObj.toLocaleDateString("pt-BR", {
-        weekday: "long",
-        year: "numeric",
-        month: "long",
-        day: "numeric",
-      });
-      return formatted.charAt(0).toUpperCase() + formatted.slice(1);
-    } catch {
-      return todayStr;
-    }
-  }, [todayStr]);
+    return formatBrasiliaDateLong(brasiliaClock.date);
+  }, [brasiliaClock.date]);
 
   // Registro de hoje do colaborador (ou o mais recente)
   const todayRecord = useMemo(() => {
@@ -111,12 +113,6 @@ export function EmployeeSelfServiceView({
     );
   }, [records, employee.id, todayStr]);
 
-  // Batidas de hoje
-  const pEntrada = todayRecord?.punches?.find((p) => p.type === "entrada");
-  const pIntSai = todayRecord?.punches?.find((p) => p.type === "intervalo_saida");
-  const pIntRet = todayRecord?.punches?.find((p) => p.type === "intervalo_retorno");
-  const pSaida = todayRecord?.punches?.find((p) => p.type === "saida");
-
   // Escala padrão do colaborador
   const empSchedule =
     safeSchedules.find((s) => s.id === employee?.defaultScheduleId) ||
@@ -124,6 +120,7 @@ export function EmployeeSelfServiceView({
     INITIAL_SCHEDULES[0] || {
       id: "sch-1",
       name: "Comercial 44h (Catuaí / Boulevard)",
+      description: "Escala 44h semanais",
       code: "COM-44",
       entryTime: "09:45",
       exitTime: "18:05",
@@ -132,8 +129,22 @@ export function EmployeeSelfServiceView({
       breakDurationMinutes: 60,
       workDays: [1, 2, 3, 4, 5, 6],
       weeklyHours: 44,
-      dailyHours: "7h20",
     };
+
+  // 4 Etapas Oficiais do Dia
+  const dayStagesInfo = useMemo(() => {
+    return getEmployeeDayStages({
+      employee,
+      dayRecord: todayRecord,
+      schedule: empSchedule,
+    });
+  }, [employee, todayRecord, empSchedule]);
+
+  // Batidas de hoje
+  const pEntrada = todayRecord?.punches?.find((p) => p.type === "entrada");
+  const pIntSai = todayRecord?.punches?.find((p) => p.type === "intervalo_saida");
+  const pIntRet = todayRecord?.punches?.find((p) => p.type === "intervalo_retorno");
+  const pSaida = todayRecord?.punches?.find((p) => p.type === "saida");
 
   // Cálculo de jornada de hoje
   const scheduledEntry = todayRecord?.scheduledEntry || empSchedule.entryTime;
@@ -146,18 +157,18 @@ export function EmployeeSelfServiceView({
   const remainingMinutes = Math.max(0, expectedTotalMinutes - workedMinutesToday);
 
   // Status da jornada de hoje
-  let currentStatusLabel = "Aguardando Início";
-  let currentStatusBadge = "bg-slate-100 text-slate-700";
+  let currentStatusLabel = "Aguardando Início do Expediente";
+  let currentStatusBadge = "bg-slate-100 text-slate-700 border border-slate-300";
 
-  if (pSaida) {
-    currentStatusLabel = "Jornada Concluída";
-    currentStatusBadge = "bg-emerald-100 text-emerald-800";
+  if (dayStagesInfo.isAllCompleted) {
+    currentStatusLabel = "Jornada Concluída (4/4 Batidas)";
+    currentStatusBadge = "bg-emerald-100 text-emerald-800 border border-emerald-300";
   } else if (pIntSai && !pIntRet) {
     currentStatusLabel = "Em Intervalo / Almoço";
-    currentStatusBadge = "bg-amber-100 text-amber-800";
+    currentStatusBadge = "bg-amber-100 text-amber-800 border border-amber-300";
   } else if (pEntrada) {
-    currentStatusLabel = "Trabalhando";
-    currentStatusBadge = "bg-emerald-500 text-white font-bold animate-pulse";
+    currentStatusLabel = "Em Expediente / Trabalhando";
+    currentStatusBadge = "bg-emerald-600 text-white font-bold animate-pulse shadow-xs";
   }
 
   // Resumo do Banco de Horas
@@ -310,113 +321,152 @@ export function EmployeeSelfServiceView({
         {/* ABA 1: MEU PONTO HOJE (JORNADA DE HOJE) */}
         {activeTab === "meu_ponto" && (
           <div className="space-y-6">
-            {/* Card Principal: Status da Jornada de Hoje */}
+            {/* Card Principal: Status da Jornada de Hoje & Relógio de Brasília */}
             <div className="bg-white rounded-3xl border border-slate-200 p-6 shadow-sm space-y-6">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b pb-4">
+              {/* Topo do Card: Data e Relógio Oficial de Brasília */}
+              <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-slate-100 pb-5">
                 <div>
-                  <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest block">
-                    Data Oficial: {formattedTodayDate}
-                  </span>
-                  <h3 className="text-xl font-black text-slate-900 mt-0.5">
-                    Acompanhamento da Jornada de Hoje
+                  <div className="flex items-center gap-2">
+                    <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-[#005C30]/10 text-[#005C30]">
+                      Horário Oficial de Brasília (UTC-03:00)
+                    </span>
+                    <span className="flex items-center gap-1 text-[11px] font-bold text-slate-400">
+                      <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                      Sincronizado
+                    </span>
+                  </div>
+                  <h3 className="text-xl font-black text-slate-900 mt-1">
+                    Jornada de Hoje • {formattedTodayDate}
                   </h3>
                 </div>
 
-                <div className="flex items-center gap-3">
-                  <span className={`px-3 py-1.5 rounded-xl text-xs uppercase tracking-wider font-black ${currentStatusBadge}`}>
+                <div className="flex flex-wrap items-center gap-3">
+                  {/* Relógio Oficial de Brasília ao Vivo */}
+                  <div className="flex items-center gap-2.5 bg-slate-900 text-white px-4 py-2 rounded-2xl shadow-sm border border-slate-800">
+                    <Clock className="w-4 h-4 text-[#FFC72C]" />
+                    <div className="font-mono text-base font-black tracking-widest text-[#FFC72C]">
+                      {brasiliaClock.timeStr}
+                      <span className="text-xs text-white/70 ml-1">:{brasiliaClock.secondsStr}</span>
+                    </div>
+                  </div>
+
+                  {/* Badge de Status Atual da Jornada */}
+                  <span className={`px-3.5 py-2 rounded-2xl text-xs uppercase tracking-wider font-black ${currentStatusBadge}`}>
                     {currentStatusLabel}
                   </span>
                 </div>
               </div>
 
-              {/* Grade Comparativa: Horários Previstos vs Registrados */}
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                {/* 1. Entrada */}
-                <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-2">
-                  <span className="text-[10px] font-bold text-slate-500 uppercase block">1. Entrada</span>
-                  <div>
-                    <span className="text-xs text-slate-400 block">Previsto:</span>
-                    <span className="font-mono text-sm font-semibold text-slate-700">{scheduledEntry}</span>
-                  </div>
-                  <div className="pt-2 border-t border-slate-200/60">
-                    <span className="text-xs text-slate-500 block font-bold">Registrado:</span>
-                    {pEntrada ? (
-                      <span className="font-mono text-lg font-black text-[#005C30] flex items-center gap-1">
-                        <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                        {pEntrada.time}
-                      </span>
-                    ) : (
-                      <span className="text-xs font-bold text-amber-600 bg-amber-50 px-2 py-0.5 rounded">
-                        Pendente
-                      </span>
-                    )}
-                  </div>
+              {/* Barra de Progresso das 4 Batidas do Dia */}
+              <div className="bg-slate-50 border border-slate-200/80 rounded-2xl p-4">
+                <div className="flex items-center justify-between text-xs mb-2">
+                  <span className="font-bold text-slate-700 flex items-center gap-1.5">
+                    <ShieldCheck className="w-4 h-4 text-[#005C30]" />
+                    Progresso das 4 Batidas Obrigatórias
+                  </span>
+                  <span className="font-black text-[#005C30]">
+                    {dayStagesInfo.completedCount} de 4 Etapas Concluídas
+                  </span>
                 </div>
-
-                {/* 2. Saída Intervalo */}
-                <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-2">
-                  <span className="text-[10px] font-bold text-slate-500 uppercase block">2. Início Intervalo</span>
-                  <div>
-                    <span className="text-xs text-slate-400 block">Previsto:</span>
-                    <span className="font-mono text-sm font-semibold text-slate-700">{empSchedule.breakStartTime}</span>
-                  </div>
-                  <div className="pt-2 border-t border-slate-200/60">
-                    <span className="text-xs text-slate-500 block font-bold">Registrado:</span>
-                    {pIntSai ? (
-                      <span className="font-mono text-lg font-black text-[#005C30] flex items-center gap-1">
-                        <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                        {pIntSai.time}
-                      </span>
-                    ) : (
-                      <span className="text-xs font-bold text-slate-400 bg-slate-100 px-2 py-0.5 rounded">
-                        Pendente
-                      </span>
-                    )}
-                  </div>
+                <div className="w-full bg-slate-200 h-2.5 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-gradient-to-r from-[#005C30] to-[#FFC72C] rounded-full transition-all duration-500"
+                    style={{ width: `${(dayStagesInfo.completedCount / 4) * 100}%` }}
+                  />
                 </div>
+              </div>
 
-                {/* 3. Retorno Intervalo */}
-                <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-2">
-                  <span className="text-[10px] font-bold text-slate-500 uppercase block">3. Retorno Intervalo</span>
-                  <div>
-                    <span className="text-xs text-slate-400 block">Previsto:</span>
-                    <span className="font-mono text-sm font-semibold text-slate-700">{empSchedule.breakEndTime}</span>
-                  </div>
-                  <div className="pt-2 border-t border-slate-200/60">
-                    <span className="text-xs text-slate-500 block font-bold">Registrado:</span>
-                    {pIntRet ? (
-                      <span className="font-mono text-lg font-black text-[#005C30] flex items-center gap-1">
-                        <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                        {pIntRet.time}
-                      </span>
-                    ) : (
-                      <span className="text-xs font-bold text-slate-400 bg-slate-100 px-2 py-0.5 rounded">
-                        Pendente
-                      </span>
-                    )}
-                  </div>
-                </div>
+              {/* Grade das 4 Etapas Oficiais da Jornada */}
+              <div>
+                <h4 className="text-xs font-black uppercase tracking-wider text-slate-400 mb-3">
+                  Etapas da Jornada Diária (Portaria 671 MTE)
+                </h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                  {dayStagesInfo.stages.map((stage) => {
+                    const isDone = stage.status === "concluido";
+                    const isNext = stage.status === "proxima";
 
-                {/* 4. Saída do Expediente */}
-                <div className="p-4 rounded-2xl bg-amber-50/50 border border-amber-200 space-y-2">
-                  <span className="text-[10px] font-bold text-amber-800 uppercase block">4. Fim de Expediente</span>
-                  <div>
-                    <span className="text-xs text-slate-400 block">Previsto:</span>
-                    <span className="font-mono text-sm font-semibold text-slate-700">{scheduledExit}</span>
-                  </div>
-                  <div className="pt-2 border-t border-amber-200/60">
-                    <span className="text-xs text-slate-500 block font-bold">Registrado:</span>
-                    {pSaida ? (
-                      <span className="font-mono text-lg font-black text-[#005C30] flex items-center gap-1">
-                        <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                        {pSaida.time}
-                      </span>
-                    ) : (
-                      <span className="text-xs font-bold text-amber-700 bg-amber-100 px-2.5 py-1 rounded-lg inline-block">
-                        Pendente (Não encerrado)
-                      </span>
-                    )}
-                  </div>
+                    let Icon = Clock;
+                    if (stage.type === "entrada") Icon = LogIn;
+                    else if (stage.type === "intervalo_saida") Icon = Utensils;
+                    else if (stage.type === "intervalo_retorno") Icon = RotateCcw;
+                    else if (stage.type === "saida") Icon = LogOut;
+
+                    return (
+                      <div
+                        key={stage.type}
+                        className={`p-4 rounded-2xl border transition-all flex flex-col justify-between ${
+                          isDone
+                            ? "bg-emerald-50/50 border-emerald-300 shadow-xs"
+                            : isNext
+                            ? "bg-amber-50/40 border-amber-300 ring-2 ring-amber-400/30 shadow-sm"
+                            : "bg-slate-50 border-slate-200 opacity-80"
+                        }`}
+                      >
+                        <div>
+                          <div className="flex items-center justify-between mb-2.5">
+                            <div
+                              className={`p-2 rounded-xl ${
+                                isDone
+                                  ? "bg-emerald-600 text-white"
+                                  : isNext
+                                  ? "bg-amber-500 text-white"
+                                  : "bg-slate-200 text-slate-500"
+                              }`}
+                            >
+                              <Icon className="w-4 h-4" />
+                            </div>
+
+                            <span
+                              className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider ${
+                                isDone
+                                  ? "bg-emerald-100 text-emerald-800"
+                                  : isNext
+                                  ? "bg-amber-100 text-amber-800 animate-pulse"
+                                  : "bg-slate-200 text-slate-600"
+                              }`}
+                            >
+                              {isDone ? "Concluído" : isNext ? "Próxima" : "Aguardando"}
+                            </span>
+                          </div>
+
+                          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                            Etapa {stage.stepNumber} de 4
+                          </span>
+                          <h5 className="font-black text-slate-800 text-sm mt-0.5">{stage.name}</h5>
+
+                          <div className="mt-3 pt-2.5 border-t border-slate-200/60 space-y-1">
+                            <div className="flex items-center justify-between text-xs">
+                              <span className="text-slate-400">Previsto na escala:</span>
+                              <span className="font-mono font-bold text-slate-700">{stage.expectedTime}</span>
+                            </div>
+                            <div className="flex items-center justify-between text-xs">
+                              <span className="text-slate-500 font-semibold">Registrado no Totem:</span>
+                              {stage.actualTime ? (
+                                <span className="font-mono font-black text-[#005C30] flex items-center gap-1 text-sm">
+                                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                                  {stage.actualTime}
+                                </span>
+                              ) : (
+                                <span className={`text-[11px] font-bold px-1.5 py-0.5 rounded ${
+                                  isNext ? "bg-amber-100 text-amber-800" : "text-slate-400 bg-slate-100"
+                                }`}>
+                                  {isNext ? "Aguardando Batida" : "Pendente"}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+
+                        {stage.punch?.photoUrl && (
+                          <div className="mt-3 pt-2 border-t border-emerald-200/60 flex items-center gap-1.5 text-[10px] text-emerald-800 font-bold">
+                            <Camera className="w-3 h-3 text-emerald-700" />
+                            <span>Foto Biométrica Certificada</span>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
 
@@ -425,7 +475,7 @@ export function EmployeeSelfServiceView({
                 <div>
                   <span className="text-slate-500 font-medium block">Horas Trabalhadas até o Momento:</span>
                   <p className="text-2xl font-black text-[#005C30] mt-0.5">
-                    {Math.floor(workedMinutesToday / 60)}h {workedMinutesToday % 60}m
+                    {Math.floor(workedMinutesToday / 60)}h {String(workedMinutesToday % 60).padStart(2, "0")}m
                   </p>
                   <p className="text-[11px] text-slate-400 mt-1">Carga diária contratual: 7h 20m</p>
                 </div>
@@ -433,16 +483,16 @@ export function EmployeeSelfServiceView({
                 <div>
                   <span className="text-slate-500 font-medium block">Tempo Restante Estimado:</span>
                   <p className="text-2xl font-black text-amber-700 mt-0.5">
-                    {pSaida ? "0h 00m (Encerrado)" : `${Math.floor(remainingMinutes / 60)}h ${remainingMinutes % 60}m`}
+                    {pSaida ? "0h 00m (Encerrado)" : `${Math.floor(remainingMinutes / 60)}h ${String(remainingMinutes % 60).padStart(2, "0")}m`}
                   </p>
-                  <p className="text-[11px] text-slate-400 mt-1">Saída prevista no totem: {scheduledExit}</p>
+                  <p className="text-[11px] text-slate-400 mt-1">Saída prevista na escala: {scheduledExit}</p>
                 </div>
               </div>
 
-              <div className="p-3 bg-slate-50 rounded-xl text-xs text-slate-500 flex items-center gap-2">
-                <ShieldCheck className="w-4 h-4 text-[#005C30] shrink-0" />
+              <div className="p-3.5 bg-slate-50 rounded-2xl text-xs text-slate-600 flex items-center gap-2.5 border border-slate-200/80">
+                <ShieldCheck className="w-5 h-5 text-[#005C30] shrink-0" />
                 <span>
-                  <strong>Aviso Oficial de Conformidade:</strong> O ponto é registrado através do Totem Quiosque na loja com foto facial ao vivo e PIN individual. Horários previstos não constituem comprovação de jornada até a efetiva batida.
+                  <strong>Homologação Oficial Portaria 671 MTE / Horário de Brasília:</strong> O registro de ponto é realizado no Totem Quiosque na loja física com captura fotográfica facial ao vivo em Horário Oficial de Brasília (UTC-03:00). Horários previstos representam a programação da escala e não constituem presença comprovada até a confirmação da marcação.
                 </span>
               </div>
             </div>

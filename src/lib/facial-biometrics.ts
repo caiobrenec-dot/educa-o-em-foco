@@ -357,11 +357,11 @@ export async function generateCertifiedPunchPhoto(params: {
   ctx.fillStyle = "#FFFFFF";
   ctx.font = "bold 14px 'Plus Jakarta Sans', Arial, sans-serif";
   ctx.textAlign = "left";
-  ctx.fillText("ATHLETA BIOMETRIA FACIAL • 68 PONTOS VALIDADOS", 60, 42);
+  ctx.fillText("ATHLETA PONTO • VALIDAÇÃO VISUAL DE PRESENÇA", 60, 42);
 
   ctx.fillStyle = "#FFC72C";
   ctx.font = "bold 12px monospace";
-  ctx.fillText("SIMILARIDADE: 99.4% • VIVACIDADE APROVADA", 60, 58);
+  ctx.fillText("ROSTO HUMANO IDENTIFICADO • HORÁRIO DE BRASÍLIA", 60, 58);
 
   ctx.fillStyle = "#10B981";
   ctx.font = "bold 12px Arial, sans-serif";
@@ -394,11 +394,11 @@ export async function generateCertifiedPunchPhoto(params: {
   ctx.textAlign = "right";
   ctx.fillText(punchLabel, width - 24, footerY + 28);
 
-  // Linha 2: Data, Hora Exata e Loja
+  // Linha 2: Data, Hora Exata no Horário Oficial de Brasília e Loja
   ctx.fillStyle = "#E2E8F0";
   ctx.font = "13px monospace";
   ctx.textAlign = "left";
-  ctx.fillText(`${dateStr} às ${timeStr} • ${store.name}`, 24, footerY + 54);
+  ctx.fillText(`${dateStr} às ${timeStr} (HORÁRIO DE BRASÍLIA) • ${store.name}`, 24, footerY + 54);
 
   // Linha 3: GPS Geocerca e Registro NSR
   ctx.fillStyle = "#94A3B8";

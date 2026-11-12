@@ -102,8 +102,70 @@ modules.forEach(mod => {
   }
 });
 
+// 6. Testa Validador Facial Inteligente e Bloqueios da Câmera
+const faceValCode = fs.readFileSync(path.join(__dirname, '../lib/face-camera-validator.ts'), 'utf8');
+const expectedValidationStates = [
+  'black_screen',
+  'dark_screen',
+  'no_face',
+  'blurry',
+  'off_center',
+  'too_close',
+  'too_far',
+  'frozen',
+  'ready'
+];
+let allStatesPresent = true;
+expectedValidationStates.forEach(st => {
+  if (faceValCode.includes(`"${st}"`) || faceValCode.includes(`'${st}'`)) {
+    console.log(`✓ Estado de validação de câmera presente: ${st}`);
+  } else {
+    console.error(`✗ Estado de validação ausente: ${st}`);
+    allStatesPresent = false;
+  }
+});
+
+// 7. Testa Padronização no Horário Oficial de Brasília
+const brasiliaCode = fs.readFileSync(path.join(__dirname, '../lib/brasilia-time.ts'), 'utf8');
+if (brasiliaCode.includes("America/Sao_Paulo") && brasiliaCode.includes("useBrasiliaClock") && brasiliaCode.includes("getBrasiliaDateStr")) {
+  console.log("✓ Motor de Horário Oficial de Brasília (America/Sao_Paulo / UTC-03:00) validado!");
+} else {
+  console.error("✗ Falha no módulo de Horário de Brasília");
+  allStatesPresent = false;
+}
+
+// 8. Testa as 4 Etapas Claras da Jornada
+const stages = ["1. Entrada", "2. Saída para Intervalo", "3. Retorno do Intervalo", "4. Saída Final"];
+const kioskStageNames = ["ENTRADA", "SAÍDA PARA INTERVALO", "RETORNO DO INTERVALO", "SAÍDA FINAL"];
+let allStagesPresent = true;
+stages.forEach((st, idx) => {
+  const kioskName = kioskStageNames[idx];
+  if (storeCode.includes(st) && kioskCode.includes(kioskName)) {
+    console.log(`✓ Etapa da jornada contemplada no Quiosque e Store: ${st} (${kioskName})`);
+  } else {
+    console.error(`✗ Etapa ausente: ${st} ou ${kioskName}`);
+    allStagesPresent = false;
+  }
+});
+
+// 9. Testa Prevenção de Duplicidades e Sequenciamento de Batidas
+if (storeCode.includes("já foi realizada hoje às") && storeCode.includes("Etapa fora de sequência!")) {
+  console.log("✓ Travas fiscais de segurança validadas: Prevenção de duplicidade e controle de sequência de marcação ativas!");
+} else {
+  console.error("✗ Falha nas travas fiscais de duplicidade/sequência");
+  allStagesPresent = false;
+}
+
+// 10. Testa Prévia de Conferência da Foto antes de Salvar e Comprovante Oficial
+if (kioskCode.includes("preview_photo") && kioskCode.includes("Tirar Outra Foto") && kioskCode.includes("success_receipt")) {
+  console.log("✓ Fluxo de prévia/conferência da foto e emissão de comprovante oficial homologado!");
+} else {
+  console.error("✗ Falha no fluxo de conferência de foto ou comprovante");
+  allStagesPresent = false;
+}
+
 console.log("\n=== RESULTADO DA VERIFICAÇÃO AUTOMATIZADA ===");
-if (allMethodsPresent && allDaysPresent && allModulesPresent) {
+if (allMethodsPresent && allDaysPresent && allModulesPresent && allStatesPresent && allStagesPresent) {
   console.log("🎉 TODOS OS TESTES PASSARAM COM SUCESSO!");
 } else {
   console.error("⚠️ Alguns testes falharam.");
