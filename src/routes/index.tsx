@@ -73,7 +73,7 @@ function IndexPage() {
   const [detailsEmployee, setDetailsEmployee] = useState<Employee | null>(null);
 
   // Quantidade de solicitações pendentes de correção
-  const pendingCorrectionsCount = corrections.filter((c) => c.status === "pendente").length;
+  const pendingCorrectionsCount = (corrections || []).filter((c) => c?.status === "pendente").length;
 
   const handleOpenDayDetails = (record: DayTimeRecord, emp?: Employee) => {
     setDetailsRecord(record);

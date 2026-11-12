@@ -34,33 +34,60 @@ function NotFoundComponent() {
 }
 
 function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
-  console.error(error);
+  console.error("Erro detectado no ATHLETA PONTO:", error);
   const router = useRouter();
+
+  const handleClearCacheAndReset = () => {
+    try {
+      if (typeof window !== "undefined") {
+        localStorage.clear();
+      }
+    } catch (e) {
+      console.error(e);
+    }
+    window.location.href = "/";
+  };
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-[#f8fafc] px-4 text-center">
-      <div className="max-w-md">
-        <h1 className="text-xl font-bold tracking-tight text-slate-900">
+      <div className="max-w-md w-full bg-white p-6 md:p-8 rounded-3xl border border-slate-200 shadow-xl space-y-4">
+        <div className="w-14 h-14 rounded-2xl bg-amber-100 text-amber-700 flex items-center justify-center mx-auto text-2xl font-black">
+          ⚠️
+        </div>
+        <h1 className="text-xl font-black tracking-tight text-slate-900">
           Ocorreu uma instabilidade na página
         </h1>
-        <p className="mt-2 text-sm text-slate-500">
-          Você pode tentar recarregar os dados do sistema.
+        <p className="text-xs text-slate-500">
+          Você pode tentar recarregar os dados do sistema ou restaurar os dados originais.
         </p>
-        <div className="mt-6 flex flex-wrap justify-center gap-2">
+
+        {error?.message && (
+          <div className="p-3 bg-red-50 text-red-700 rounded-xl text-xs font-mono text-left overflow-x-auto border border-red-200 break-words max-h-32">
+            {error.message}
+          </div>
+        )}
+
+        <div className="pt-2 flex flex-col sm:flex-row justify-center gap-2">
           <button
             onClick={() => {
               router.invalidate();
               reset();
             }}
-            className="inline-flex items-center justify-center rounded-xl bg-[#005C30] px-4 py-2 text-xs font-bold text-white shadow-md hover:bg-[#004724]"
+            className="inline-flex items-center justify-center rounded-xl bg-[#005C30] px-4 py-2.5 text-xs font-bold text-white shadow-md hover:bg-[#004724] transition-all"
           >
             Tentar novamente
           </button>
+          <button
+            onClick={handleClearCacheAndReset}
+            className="inline-flex items-center justify-center rounded-xl bg-amber-500 px-4 py-2.5 text-xs font-bold text-white shadow-md hover:bg-amber-600 transition-all"
+          >
+            Restaurar Dados Padrão
+          </button>
           <a
             href="/"
-            className="inline-flex items-center justify-center rounded-xl border border-slate-300 bg-white px-4 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50"
+            className="inline-flex items-center justify-center rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-slate-50 transition-all"
           >
-            Voltar ao Início
+            Início
           </a>
         </div>
       </div>

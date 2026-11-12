@@ -62,8 +62,8 @@ export function BankOfHoursModule({
       const matchesStore = storeFilter === "all" || emp.storeId === storeFilter;
       const matchesSearch =
         searchTerm.trim() === "" ||
-        emp.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        emp.role.toLowerCase().includes(searchTerm.toLowerCase());
+        (emp?.name || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (emp?.role || "").toLowerCase().includes(searchTerm.toLowerCase());
       return matchesStore && matchesSearch;
     });
   }, [employees, storeFilter, searchTerm]);
@@ -698,7 +698,7 @@ export function BankOfHoursModule({
                     const st = stores.find((s) => s.id === e.storeId);
                     return (
                       <option key={e.id} value={e.id}>
-                        {e.name} — {e.role} ({st?.name.replace("Athleta ", "")})
+                        {e.name} — {e.role || "Colaborador"} ({st?.name?.replace("Athleta ", "") || st?.name || "Loja"})
                       </option>
                     );
                   })}

@@ -291,7 +291,7 @@ export function TimeRecordsModule({
                       </td>
 
                       <td className="py-2.5 px-3 text-slate-600 truncate max-w-[110px]">
-                        {store?.name.replace("Athleta ", "")}
+                        {store?.name?.replace("Athleta ", "") || store?.name || "Catuaí"}
                       </td>
 
                       <td className="py-2.5 px-3 text-slate-500 whitespace-nowrap">

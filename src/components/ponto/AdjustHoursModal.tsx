@@ -261,7 +261,7 @@ export function AdjustHoursModal({
                   const s = stores.find((st) => st.id === emp.storeId);
                   return (
                     <option key={emp.id} value={emp.id}>
-                      {emp.name} — {s?.name.replace("Athleta ", "") || "Loja"}
+                      {emp.name} — {s?.name?.replace("Athleta ", "") || s?.name || "Loja"}
                     </option>
                   );
                 })}

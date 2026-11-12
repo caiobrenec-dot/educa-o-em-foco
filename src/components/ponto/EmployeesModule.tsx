@@ -38,7 +38,7 @@ export function EmployeesModule({
 
       if (search.trim()) {
         const q = search.toLowerCase();
-        const mName = emp.name.toLowerCase().includes(q);
+        const mName = (emp?.name || "").toLowerCase().includes(q);
         if (!mName) return false;
       }
       return true;
@@ -182,7 +182,7 @@ export function EmployeesModule({
                           }`}
                         >
                           <Building2 className="w-3.5 h-3.5" />
-                          {empStore?.name.replace("Athleta ", "") || "Loja"}
+                          {empStore?.name?.replace("Athleta ", "") || empStore?.name || "Loja"}
                         </span>
                       </td>
 

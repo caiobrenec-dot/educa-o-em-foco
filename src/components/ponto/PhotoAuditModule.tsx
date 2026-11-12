@@ -82,8 +82,8 @@ export function PhotoAuditModule({
       if (dateFilter && item.recordDate !== dateFilter) return false;
       if (
         searchTerm.trim() &&
-        !item.employee.name.toLowerCase().includes(searchTerm.toLowerCase()) &&
-        !item.store.name.toLowerCase().includes(searchTerm.toLowerCase())
+        !(item?.employee?.name || "").toLowerCase().includes(searchTerm.toLowerCase()) &&
+        !(item?.store?.name || "").toLowerCase().includes(searchTerm.toLowerCase())
       ) {
         return false;
       }
@@ -375,7 +375,7 @@ export function PhotoAuditModule({
 
                         <div className="mt-2 flex items-center gap-1 text-[11px] text-slate-600">
                           <Building2 className="w-3.5 h-3.5 text-[#005C30] shrink-0" />
-                          <span className="truncate">{item.store.name.replace("Athleta ", "")}</span>
+                          <span className="truncate">{item?.store?.name?.replace("Athleta ", "") || item?.store?.name || "Loja"}</span>
                         </div>
 
                         <div className="mt-1 flex items-center gap-1 text-[10px] text-slate-400">

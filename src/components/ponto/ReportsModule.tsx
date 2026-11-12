@@ -68,7 +68,7 @@ export function ReportsModule({ selectedStoreId, onSelectEmployee }: ReportsModu
 
       return {
         emp,
-        storeName: store?.name.replace("Athleta ", "") || "Loja",
+        storeName: store?.name?.replace("Athleta ", "") || store?.name || "Loja",
         record,
         isWorking,
         isAbsent,
@@ -124,7 +124,7 @@ export function ReportsModule({ selectedStoreId, onSelectEmployee }: ReportsModu
 
       return {
         emp,
-        storeName: store?.name.replace("Athleta ", "") || "Loja",
+        storeName: store?.name?.replace("Athleta ", "") || store?.name || "Loja",
         totalWorkedMinutes,
         totalExpectedMinutes,
         totalExtraMinutes,
@@ -165,7 +165,7 @@ export function ReportsModule({ selectedStoreId, onSelectEmployee }: ReportsModu
 
       return {
         emp,
-        storeName: store?.name.replace("Athleta ", "") || "Loja",
+        storeName: store?.name?.replace("Athleta ", "") || store?.name || "Loja",
         totalWorkedMinutes,
         totalExpectedMinutes,
         totalExtraMinutes,

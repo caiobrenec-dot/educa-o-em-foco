@@ -48,14 +48,20 @@ export function OverviewModule({
   onOpenKiosk,
 }: OverviewModuleProps) {
   const { stores, employees, records, corrections, auditLogs } = usePonto();
+  const [isMounted, setIsMounted] = React.useState(false);
+
+  React.useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   const todayStr = new Date().toISOString().split("T")[0];
 
   // Filtra por loja se selecionado
   const filteredEmployees = useMemo(() => {
+    const list = employees || [];
     return selectedStoreId === "all"
-      ? employees
-      : employees.filter((e) => e.storeId === selectedStoreId);
+      ? list
+      : list.filter((e) => e.storeId === selectedStoreId);
   }, [employees, selectedStoreId]);
 
   const activeEmployeesCount = filteredEmployees.filter((e) => e.status === "ativo").length;
@@ -132,7 +138,7 @@ export function OverviewModule({
   }, [records, filteredEmployees]);
 
   // Solicitações pendentes
-  const pendingCorrections = corrections.filter((c) => c.status === "pendente");
+  const pendingCorrections = (corrections || []).filter((c) => c?.status === "pendente");
 
   return (
     <div className="space-y-6">
@@ -290,25 +296,31 @@ export function OverviewModule({
           </div>
 
           <div className="h-64 w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
-                <XAxis dataKey="name" tick={{ fontSize: 11, fill: "#64748B" }} />
-                <YAxis tick={{ fontSize: 11, fill: "#64748B" }} unit="h" />
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: "#062316",
-                    color: "#FFFFFF",
-                    borderRadius: "12px",
-                    border: "none",
-                    fontSize: "12px",
-                  }}
-                />
-                <Legend wrapperStyle={{ fontSize: "11px", paddingTop: "8px" }} />
-                <Bar dataKey="Horas Previstas" fill="#94A3B8" radius={[4, 4, 0, 0]} />
-                <Bar dataKey="Horas Trabalhadas" fill="#005C30" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
+            {isMounted ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
+                  <XAxis dataKey="name" tick={{ fontSize: 11, fill: "#64748B" }} />
+                  <YAxis tick={{ fontSize: 11, fill: "#64748B" }} unit="h" />
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: "#062316",
+                      color: "#FFFFFF",
+                      borderRadius: "12px",
+                      border: "none",
+                      fontSize: "12px",
+                    }}
+                  />
+                  <Legend wrapperStyle={{ fontSize: "11px", paddingTop: "8px" }} />
+                  <Bar dataKey="Horas Previstas" fill="#94A3B8" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="Horas Trabalhadas" fill="#005C30" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="h-full w-full flex items-center justify-center bg-slate-50 rounded-xl text-slate-400 text-xs">
+                Carregando gráfico semanal...
+              </div>
+            )}
           </div>
         </div>
 

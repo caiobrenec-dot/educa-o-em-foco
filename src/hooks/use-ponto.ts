@@ -13,16 +13,16 @@ import {
 } from "../lib/ponto-store";
 
 export function usePonto() {
-  const [stores, setStores] = useState<Store[]>([]);
-  const [employees, setEmployees] = useState<Employee[]>([]);
-  const [records, setRecords] = useState<DayTimeRecord[]>([]);
-  const [schedules, setSchedules] = useState<ScheduleTemplate[]>([]);
-  const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
-  const [corrections, setCorrections] = useState<CorrectionRequest[]>([]);
-  const [settings, setSettings] = useState<SystemSettings>(PontoStore.getSettings());
-  const [overrides, setOverrides] = useState<DateScheduleOverride[]>([]);
-  const [bankEntries, setBankEntries] = useState<BankOfHoursEntry[]>([]);
-  const [isLoaded, setIsLoaded] = useState(false);
+  const [stores, setStores] = useState<Store[]>(() => PontoStore.getStores());
+  const [employees, setEmployees] = useState<Employee[]>(() => PontoStore.getEmployees());
+  const [records, setRecords] = useState<DayTimeRecord[]>(() => PontoStore.getDayRecords());
+  const [schedules, setSchedules] = useState<ScheduleTemplate[]>(() => PontoStore.getSchedules());
+  const [auditLogs, setAuditLogs] = useState<AuditLog[]>(() => PontoStore.getAuditLogs());
+  const [corrections, setCorrections] = useState<CorrectionRequest[]>(() => PontoStore.getCorrections());
+  const [settings, setSettings] = useState<SystemSettings>(() => PontoStore.getSettings());
+  const [overrides, setOverrides] = useState<DateScheduleOverride[]>(() => PontoStore.getScheduleOverrides());
+  const [bankEntries, setBankEntries] = useState<BankOfHoursEntry[]>(() => PontoStore.getBankOfHoursEntries());
+  const [isLoaded, setIsLoaded] = useState(true);
 
   const refresh = () => {
     setStores(PontoStore.getStores());

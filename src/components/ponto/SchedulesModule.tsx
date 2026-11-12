@@ -239,7 +239,7 @@ export function SchedulesModule({ selectedStoreId }: SchedulesModuleProps) {
                       </div>
                     </td>
                     <td className="py-2 px-3 text-slate-600">{emp.role}</td>
-                    <td className="py-2 px-3 text-slate-600">{empStore?.name.replace("Athleta ", "")}</td>
+                    <td className="py-2 px-3 text-slate-600">{empStore?.name?.replace("Athleta ", "") || empStore?.name || "Loja"}</td>
                     <td className="py-2 px-3">
                       <select
                         value={emp.defaultScheduleId}

@@ -53,12 +53,12 @@ export function WeeklyControlModule({
     return getWeekDates(referenceDate);
   }, [referenceDate]);
 
-  const weekStartStr = currentWeekDays[0]?.date.split("-").reverse().join("/");
-  const weekEndStr = currentWeekDays[6]?.date.split("-").reverse().join("/");
+  const weekStartStr = currentWeekDays[0]?.date ? currentWeekDays[0].date.split("-").reverse().join("/") : "";
+  const weekEndStr = currentWeekDays[6]?.date ? currentWeekDays[6].date.split("-").reverse().join("/") : "";
 
   // Filtragem dos funcionários
   const filteredEmployees = useMemo(() => {
-    return employees.filter((emp) => {
+    return (employees || []).filter((emp) => {
       // Filtro de Loja
       if (selectedStoreId !== "all" && emp.storeId !== selectedStoreId) return false;
 
@@ -68,15 +68,15 @@ export function WeeklyControlModule({
       // Busca por nome ou cargo
       if (searchQuery.trim()) {
         const query = searchQuery.toLowerCase();
-        const matchesName = emp.name.toLowerCase().includes(query);
-        const matchesRole = emp.role.toLowerCase().includes(query);
-        const matchesMatricula = emp.matricula.toLowerCase().includes(query);
+        const matchesName = (emp?.name || "").toLowerCase().includes(query);
+        const matchesRole = (emp?.role || "").toLowerCase().includes(query);
+        const matchesMatricula = (emp?.matricula || "").toLowerCase().includes(query);
         if (!matchesName && !matchesRole && !matchesMatricula) return false;
       }
 
       // Filtro por status na semana
       if (statusFilter !== "all") {
-        const empRecords = records.filter(
+        const empRecords = (records || []).filter(
           (r) => r.employeeId === emp.id && currentWeekDays.some((w) => w.date === r.date)
         );
         const hasStatus = empRecords.some((r) => r.status === statusFilter);
@@ -381,7 +381,7 @@ export function WeeklyControlModule({
                               {emp.role}
                             </p>
                             <span className="inline-block mt-0.5 text-[10px] text-emerald-800 font-semibold px-1.5 py-0.2 rounded bg-emerald-50 border border-emerald-200 truncate">
-                              {empStore?.name.replace("Athleta ", "") || "Athleta"}
+                              {empStore?.name?.replace("Athleta ", "") || empStore?.name || "Athleta"}
                             </span>
                           </div>
                         </div>

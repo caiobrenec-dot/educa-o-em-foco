@@ -1399,7 +1399,8 @@ export class PontoStore {
         localStorage.setItem(STORAGE_KEYS.BANK_OF_HOURS, JSON.stringify(bankEntries));
         return records;
       }
-      return JSON.parse(data);
+      const parsed = JSON.parse(data);
+      return Array.isArray(parsed) ? parsed : [];
     } catch {
       return [];
     }
@@ -1421,7 +1422,8 @@ export class PontoStore {
         localStorage.setItem(STORAGE_KEYS.BANK_OF_HOURS, JSON.stringify(bankEntries));
         return bankEntries;
       }
-      return JSON.parse(data);
+      const parsed = JSON.parse(data);
+      return Array.isArray(parsed) ? parsed : [];
     } catch {
       return [];
     }
@@ -2026,7 +2028,8 @@ export class PontoStore {
     try {
       const data = localStorage.getItem(STORAGE_KEYS.CORRECTIONS);
       if (!data) return [];
-      return JSON.parse(data);
+      const parsed = JSON.parse(data);
+      return Array.isArray(parsed) ? parsed : [];
     } catch {
       return [];
     }
@@ -2154,7 +2157,8 @@ export class PontoStore {
     if (typeof window === "undefined") return INITIAL_SCHEDULES;
     try {
       const data = localStorage.getItem(STORAGE_KEYS.SCHEDULES);
-      return data ? JSON.parse(data) : INITIAL_SCHEDULES;
+      const parsed = data ? JSON.parse(data) : INITIAL_SCHEDULES;
+      return Array.isArray(parsed) ? parsed : INITIAL_SCHEDULES;
     } catch {
       return INITIAL_SCHEDULES;
     }
@@ -2164,7 +2168,8 @@ export class PontoStore {
     if (typeof window === "undefined") return [];
     try {
       const data = localStorage.getItem(STORAGE_KEYS.SCHEDULE_OVERRIDES);
-      return data ? JSON.parse(data) : [];
+      const parsed = data ? JSON.parse(data) : [];
+      return Array.isArray(parsed) ? parsed : [];
     } catch {
       return [];
     }
@@ -2189,7 +2194,8 @@ export class PontoStore {
     try {
       const data = localStorage.getItem(STORAGE_KEYS.AUDIT_LOGS);
       if (!data) return [];
-      return JSON.parse(data);
+      const parsed = JSON.parse(data);
+      return Array.isArray(parsed) ? parsed : [];
     } catch {
       return [];
     }
