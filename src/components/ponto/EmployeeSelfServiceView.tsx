@@ -1,5 +1,14 @@
-import React, { useState, useMemo } from "react";
-import { Employee, DayTimeRecord, Store, formatMinutesHuman, timeToMinutes, minutesToTime } from "../../lib/ponto-store";
+import {
+  Employee,
+  DayTimeRecord,
+  Store,
+  formatMinutesHuman,
+  timeToMinutes,
+  minutesToTime,
+  INITIAL_EMPLOYEES,
+  INITIAL_STORES,
+  INITIAL_SCHEDULES,
+} from "../../lib/ponto-store";
 import { usePonto } from "../../hooks/use-ponto";
 import { AthletaLogo } from "../AthletaLogo";
 import {
@@ -26,20 +35,33 @@ import {
 import { toast } from "sonner";
 
 interface EmployeeSelfServiceViewProps {
-  onBackToAdmin: () => void;
+  onBackToAdmin?: () => void;
+  onReturnToAdmin?: () => void;
   initialEmployeeId?: string;
 }
 
 export function EmployeeSelfServiceView({
   onBackToAdmin,
-  initialEmployeeId = "emp-2", // Mariana Santos por padrão
+  onReturnToAdmin,
+  initialEmployeeId = "emp-2",
 }: EmployeeSelfServiceViewProps) {
+  const handleBack = onBackToAdmin || onReturnToAdmin || (() => {});
   const { employees, stores, records, schedules, getEmployeeBankSummary, requestCorrection } = usePonto();
 
+  const safeEmployees = employees.length > 0 ? employees : INITIAL_EMPLOYEES;
+  const safeStores = stores.length > 0 ? stores : INITIAL_STORES;
+  const safeSchedules = schedules.length > 0 ? schedules : INITIAL_SCHEDULES;
+
   // Seleção de qual funcionário está acessando
-  const [selectedEmpId, setSelectedEmpId] = useState<string>(initialEmployeeId);
-  const employee = employees.find((e) => e.id === selectedEmpId) || employees[0];
-  const store = stores.find((s) => s.id === employee.storeId);
+  const [selectedEmpId, setSelectedEmpId] = useState<string>(
+    initialEmployeeId && safeEmployees.some((e) => e.id === initialEmployeeId)
+      ? initialEmployeeId
+      : safeEmployees[0]?.id || "emp-2"
+  );
+  const employee =
+    (safeEmployees.find((e) => e.id === selectedEmpId) || safeEmployees[0]) || INITIAL_EMPLOYEES[0];
+  const store =
+    (safeStores.find((s) => s.id === employee?.storeId) || safeStores[0]) || INITIAL_STORES[0];
 
   // Aba ativa na Área do Colaborador
   const [activeTab, setActiveTab] = useState<"meu_ponto" | "minha_escala" | "banco_horas" | "historico" | "comprovantes">("meu_ponto");
@@ -62,13 +84,28 @@ export function EmployeeSelfServiceView({
   }, [records, employee.id, todayStr]);
 
   // Batidas de hoje
-  const pEntrada = todayRecord?.punches.find((p) => p.type === "entrada");
-  const pIntSai = todayRecord?.punches.find((p) => p.type === "intervalo_saida");
-  const pIntRet = todayRecord?.punches.find((p) => p.type === "intervalo_retorno");
-  const pSaida = todayRecord?.punches.find((p) => p.type === "saida");
+  const pEntrada = todayRecord?.punches?.find((p) => p.type === "entrada");
+  const pIntSai = todayRecord?.punches?.find((p) => p.type === "intervalo_saida");
+  const pIntRet = todayRecord?.punches?.find((p) => p.type === "intervalo_retorno");
+  const pSaida = todayRecord?.punches?.find((p) => p.type === "saida");
 
   // Escala padrão do colaborador
-  const empSchedule = schedules.find((s) => s.id === employee.defaultScheduleId) || schedules[0];
+  const empSchedule =
+    safeSchedules.find((s) => s.id === employee?.defaultScheduleId) ||
+    safeSchedules[0] ||
+    INITIAL_SCHEDULES[0] || {
+      id: "sch-1",
+      name: "Comercial 44h (Catuaí / Boulevard)",
+      code: "COM-44",
+      entryTime: "09:45",
+      exitTime: "18:05",
+      breakStartTime: "13:30",
+      breakEndTime: "14:30",
+      breakDurationMinutes: 60,
+      workDays: [1, 2, 3, 4, 5, 6],
+      weeklyHours: 44,
+      dailyHours: "7h20",
+    };
 
   // Cálculo de jornada de hoje
   const scheduledEntry = todayRecord?.scheduledEntry || empSchedule.entryTime;
@@ -130,7 +167,7 @@ export function EmployeeSelfServiceView({
   };
 
   return (
-    <div className="min-h-screen bg-[#f8fafc] text-slate-900 flex flex-col">
+    <div className="flex-1 bg-[#f8fafc] text-slate-900 flex flex-col min-h-[calc(100vh-68px)]">
       {/* Topo Exclusivo da Área do Colaborador */}
       <header className="bg-gradient-to-r from-[#005C30] via-[#004724] to-[#012e18] text-white shadow-md">
         <div className="max-w-6xl mx-auto px-4 py-4 sm:px-6">
@@ -153,7 +190,7 @@ export function EmployeeSelfServiceView({
                   onChange={(e) => setSelectedEmpId(e.target.value)}
                   className="bg-transparent text-white font-bold focus:outline-none cursor-pointer text-xs"
                 >
-                  {employees.map((e) => (
+                  {safeEmployees.map((e) => (
                     <option key={e.id} value={e.id} className="bg-slate-900 text-white">
                       {e.name} ({e.role})
                     </option>
@@ -162,7 +199,7 @@ export function EmployeeSelfServiceView({
               </div>
 
               <button
-                onClick={onBackToAdmin}
+                onClick={handleBack}
                 className="px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-xs font-bold text-white transition-colors"
               >
                 ← Painel ADM TOTAL
@@ -174,24 +211,28 @@ export function EmployeeSelfServiceView({
           <div className="mt-4 pt-4 border-t border-white/15 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div className="flex items-center gap-3.5">
               <img
-                src={employee.avatar}
-                alt={employee.name}
+                src={
+                  employee?.avatar ||
+                  employee?.photoUrl ||
+                  "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80"
+                }
+                alt={employee?.name || "Colaborador"}
                 className="w-14 h-14 rounded-2xl object-cover border-2 border-[#FFC72C] shadow-md"
               />
               <div>
                 <div className="flex items-center gap-2">
-                  <h2 className="text-xl font-black text-white">{employee.name}</h2>
+                  <h2 className="text-xl font-black text-white">{employee?.name || "Colaborador"}</h2>
                   <span className="px-2 py-0.5 rounded-md bg-[#FFC72C] text-[#004724] text-[10px] font-black uppercase">
-                    {employee.role}
+                    {employee?.role || "Vendedor(a) Esportivo"}
                   </span>
                 </div>
                 <div className="flex items-center gap-2 text-xs text-white/80 mt-0.5">
                   <span className="flex items-center gap-1 font-semibold text-[#FFC72C]">
                     <Building2 className="w-3.5 h-3.5" />
-                    {store?.name}
+                    {store?.name || "Loja Athleta"}
                   </span>
                   <span>•</span>
-                  <span>Matrícula: {employee.matricula}</span>
+                  <span>Matrícula: {employee?.matricula || "ATH-1001"}</span>
                 </div>
               </div>
             </div>
@@ -494,14 +535,14 @@ export function EmployeeSelfServiceView({
             <div>
               <h3 className="text-lg font-black text-slate-900">Escala de Trabalho Semanal</h3>
               <p className="text-xs text-slate-500">
-                Turno: <strong>{empSchedule.name}</strong> • Carga horária: {employee.contractHoursPerWeek}h semanais
+                Turno: <strong>{empSchedule?.name || "Comercial 44h"}</strong> • Carga horária: {employee?.contractHoursPerWeek || 44}h semanais
               </p>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-7 gap-3 text-center">
               {["Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado", "Domingo"].map((dayName, idx) => {
                 const dayNum = idx === 6 ? 0 : idx + 1;
-                const isWork = empSchedule.workDays.includes(dayNum);
+                const isWork = (empSchedule?.workDays || [1, 2, 3, 4, 5, 6]).includes(dayNum);
 
                 return (
                   <div
@@ -631,10 +672,18 @@ export function EmployeeSelfServiceView({
             </div>
 
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-              {monthRecords.flatMap((r) => r.punches).slice(0, 12).map((punch, idx) => (
+              {monthRecords.flatMap((r) => r.punches || []).slice(0, 12).map((punch, idx) => (
                 <div key={idx} className="border rounded-2xl overflow-hidden bg-slate-50 p-2.5 space-y-2">
                   <div className="aspect-square rounded-xl overflow-hidden bg-black relative">
-                    <img src={punch.photoUrl} alt="Selfie" className="w-full h-full object-cover" />
+                    <img
+                      src={
+                        punch.photoUrl ||
+                        employee?.avatar ||
+                        "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80"
+                      }
+                      alt="Selfie"
+                      className="w-full h-full object-cover"
+                    />
                     <span className="absolute bottom-1 right-1 px-1.5 py-0.5 rounded bg-[#005C30] text-[9px] font-bold text-white font-mono">
                       {punch.time}
                     </span>

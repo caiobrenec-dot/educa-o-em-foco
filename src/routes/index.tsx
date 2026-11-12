@@ -85,25 +85,6 @@ function IndexPage() {
     }
   };
 
-  // 1. MODO QUIOSQUE (TOTEM LOJA)
-  if (viewMode === "kiosk") {
-    return (
-      <KioskView
-        onExitKiosk={() => setViewMode("admin")}
-        defaultStoreId={selectedStoreId !== "all" ? selectedStoreId : undefined}
-      />
-    );
-  }
-
-  // 2. PAINEL INDIVIDUAL DO FUNCIONÁRIO (MEU PONTO)
-  if (viewMode === "self_service") {
-    return (
-      <EmployeeSelfServiceView
-        onReturnToAdmin={() => setViewMode("admin")}
-      />
-    );
-  }
-
   // Configuração das Abas do Painel dos Proprietários (ADM TOTAL)
   const tabsConfig: { id: TabType; label: string; icon: React.ElementType; badge?: number }[] = [
     { id: "visao-geral", label: "Visão Geral", icon: LayoutDashboard },
@@ -121,146 +102,178 @@ function IndexPage() {
 
   return (
     <div className="min-h-screen bg-[#f8fafc] text-slate-900 flex flex-col">
-      {/* 1. HEADER EXCLUSIVO DOS PROPRIETÁRIOS COM CORES OFICIAIS ATHLETA */}
-      <header className="sticky top-0 z-40 bg-[#005C30] text-white shadow-md border-b border-[#004724]">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16 md:h-20 gap-4">
-            {/* Logo Athleta com as 3 estrelas */}
-            <div className="flex items-center gap-3">
-              <AthletaLogo variant="white" size="md" subtitleText="ADMIN TOTAL" />
-            </div>
-
-            {/* Alternador de Ambiente (ADM vs Meu Ponto vs Quiosque) */}
-            <div className="hidden md:flex items-center bg-[#004724] p-1 rounded-2xl border border-white/10 text-xs font-bold">
-              <button
-                onClick={() => setViewMode("admin")}
-                className="px-3.5 py-1.5 rounded-xl bg-[#FFC72C] text-[#004724] shadow-xs font-black"
-              >
-                ADM Total
-              </button>
-              <button
-                onClick={() => setViewMode("self_service")}
-                className="px-3.5 py-1.5 rounded-xl text-white/80 hover:text-white hover:bg-white/10 transition-colors flex items-center gap-1.5"
-              >
-                <UserCheck className="w-3.5 h-3.5 text-[#FFC72C]" />
-                Área do Colaborador (Meu Ponto)
-              </button>
-              <button
-                onClick={() => setViewMode("kiosk")}
-                className="px-3.5 py-1.5 rounded-xl text-white/80 hover:text-white hover:bg-white/10 transition-colors flex items-center gap-1.5"
-              >
-                <Tablet className="w-3.5 h-3.5 text-[#FFC72C]" />
-                Totem Quiosque
-              </button>
-            </div>
-
-            {/* Ações Centrais e Direita */}
-            <div className="flex items-center gap-3 md:gap-4">
-              {/* Seletor de Loja no Topo */}
-              <div className="hidden lg:flex items-center gap-2 bg-[#004724] px-3 py-1.5 rounded-xl border border-white/10 text-xs">
-                <Building2 className="w-4 h-4 text-[#FFC72C]" />
-                <select
-                  value={selectedStoreId}
-                  onChange={(e) => setSelectedStoreId(e.target.value)}
-                  className="bg-transparent text-white font-bold focus:outline-none cursor-pointer"
-                >
-                  <option value="all" className="bg-[#004724] text-white">
-                    Todas as Unidades (Rede Athleta)
-                  </option>
-                  {stores.map((s) => (
-                    <option key={s.id} value={s.id} className="bg-[#004724] text-white">
-                      {s.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Botão de Destaque: Modo Quiosque Mobile */}
-              <button
-                onClick={() => setViewMode("kiosk")}
-                className="md:hidden px-3 py-2 rounded-xl bg-gradient-to-r from-[#FFC72C] to-[#E6A817] text-[#004724] font-black text-xs uppercase tracking-wider shadow-md flex items-center gap-1"
-                title="Abrir tela cheia para o tablet da loja"
-              >
-                <Tablet className="w-4 h-4" />
-                <span>Totem</span>
-              </button>
-
-              {/* Botão Atalho: Área do Colaborador Mobile */}
-              <button
-                onClick={() => setViewMode("self_service")}
-                className="md:hidden px-3 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white font-bold text-xs flex items-center gap-1"
-                title="Abrir Área Meu Ponto"
-              >
-                <UserCheck className="w-4 h-4 text-[#FFC72C]" />
-                <span>Meu Ponto</span>
-              </button>
-
-              {/* Notificações de Auditoria / Correções */}
-              <button
-                onClick={() => setActiveTab("auditoria")}
-                className="relative p-2 rounded-xl bg-white/10 hover:bg-white/20 text-white transition-colors"
-                title="Auditoria & Solicitações"
-              >
-                <Bell className="w-5 h-5" />
-                {pendingCorrectionsCount > 0 && (
-                  <span className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-[#FFC72C] text-[#004724] font-bold text-[10px] flex items-center justify-center shadow-xs">
-                    {pendingCorrectionsCount}
-                  </span>
-                )}
-              </button>
-
-              {/* Perfil do Administrador / Proprietário */}
-              <div className="flex items-center gap-2 pl-2 border-l border-white/20">
-                <div className="w-8 h-8 rounded-full bg-[#FFC72C] text-[#004724] font-black flex items-center justify-center text-xs">
-                  AP
-                </div>
-                <div className="hidden xl:block text-left text-xs leading-tight">
-                  <span className="font-bold text-white block">Administrador Geral</span>
-                  <span className="text-white/70 text-[10px]">Proprietário Athleta</span>
-                </div>
-              </div>
+      {/* 1. BARRA SUPERIOR GLOBAL FIXA — ABAS PRINCIPAIS (ADMIN / TOTEM QUIOSQUE / MEU PONTO) */}
+      <div className="bg-[#00381c] border-b-2 border-[#FFC72C]/40 text-white shadow-xl sticky top-0 z-50">
+        <div className="max-w-7xl mx-auto px-4 py-2.5 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-3">
+          {/* Marca Athleta Ponto */}
+          <div className="flex items-center gap-3">
+            <AthletaLogo variant="white" size="sm" subtitleText="PONTO ELETRÔNICO" />
+            <div className="hidden md:flex items-center gap-2 pl-3 border-l border-white/20 text-xs">
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+              <span className="text-white/80 font-semibold">Shopping Catuaí & Shopping Boulevard</span>
             </div>
           </div>
+
+          {/* ABAS PRINCIPAIS: ADMIN vs TOTEM QUIOSQUE vs MEU PONTO */}
+          <div className="flex items-center bg-[#002412] p-1.5 rounded-2xl border border-white/15 shadow-inner gap-1.5 w-full sm:w-auto justify-center">
+            {/* 1. ABA ADMIN */}
+            <button
+              onClick={() => setViewMode("admin")}
+              className={`flex-1 sm:flex-none px-4 py-2 rounded-xl text-xs sm:text-sm font-black transition-all flex items-center justify-center gap-2 ${
+                viewMode === "admin"
+                  ? "bg-[#FFC72C] text-[#004724] shadow-md scale-102 font-black"
+                  : "text-white/80 hover:text-white hover:bg-white/10"
+              }`}
+            >
+              <ShieldCheck className="w-4 h-4 text-emerald-800" />
+              <span>👑 PAINEL ADMIN</span>
+            </button>
+
+            {/* 2. ABA TOTEM QUIOSQUE */}
+            <button
+              onClick={() => setViewMode("kiosk")}
+              className={`flex-1 sm:flex-none px-4 py-2 rounded-xl text-xs sm:text-sm font-black transition-all flex items-center justify-center gap-2 ${
+                viewMode === "kiosk"
+                  ? "bg-[#FFC72C] text-[#004724] shadow-md scale-102 font-black"
+                  : "text-white/80 hover:text-white hover:bg-white/10"
+              }`}
+            >
+              <Tablet className="w-4 h-4 text-[#004724]" />
+              <span>📱 TOTEM QUIOSQUE</span>
+            </button>
+
+            {/* 3. ABA ÁREA DO COLABORADOR */}
+            <button
+              onClick={() => setViewMode("self_service")}
+              className={`flex-1 sm:flex-none px-4 py-2 rounded-xl text-xs sm:text-sm font-black transition-all flex items-center justify-center gap-2 ${
+                viewMode === "self_service"
+                  ? "bg-[#FFC72C] text-[#004724] shadow-md scale-102 font-black"
+                  : "text-white/80 hover:text-white hover:bg-white/10"
+              }`}
+            >
+              <UserCheck className="w-4 h-4 text-[#004724]" />
+              <span>👤 MEU PONTO</span>
+            </button>
+          </div>
         </div>
+      </div>
 
-        {/* 2. BARRA DE NAVEGAÇÃO DOS MÓDULOS */}
-        <div className="bg-[#004724] border-t border-white/10">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <nav className="flex items-center gap-1 overflow-x-auto py-2 scrollbar-none text-xs font-bold">
-              {tabsConfig.map((tab) => {
-                const Icon = tab.icon;
-                const isActive = activeTab === tab.id;
+      {/* 2. MODO TOTEM QUIOSQUE (BATER PONTO) */}
+      {viewMode === "kiosk" && (
+        <KioskView
+          onExitKiosk={() => setViewMode("admin")}
+          defaultStoreId={selectedStoreId !== "all" ? selectedStoreId : undefined}
+        />
+      )}
 
-                return (
+      {/* 3. MODO MEU PONTO (PAINEL DO COLABORADOR) */}
+      {viewMode === "self_service" && (
+        <EmployeeSelfServiceView
+          onReturnToAdmin={() => setViewMode("admin")}
+        />
+      )}
+
+      {/* 4. MODO PAINEL ADMIN TOTAL */}
+      {viewMode === "admin" && (
+        <>
+          {/* HEADER DO ADMINISTRADOR COM SELETOR DE LOJA E NOTIFICAÇÕES */}
+          <header className="bg-[#005C30] text-white shadow-md border-b border-[#004724]">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+              <div className="flex items-center justify-between h-16 md:h-18 gap-4">
+                <div className="flex items-center gap-3">
+                  <div className="font-black text-sm uppercase tracking-wider text-[#FFC72C] flex items-center gap-2">
+                    <ShieldCheck className="w-5 h-5 text-[#FFC72C]" />
+                    <span>Gestão Integrada de Ponto & Escalas</span>
+                  </div>
+                </div>
+
+                {/* Ações Centrais e Direita */}
+                <div className="flex items-center gap-3 md:gap-4">
+                  {/* Seletor de Loja no Topo */}
+                  <div className="flex items-center gap-2 bg-[#004724] px-3 py-1.5 rounded-xl border border-white/10 text-xs">
+                    <Building2 className="w-4 h-4 text-[#FFC72C]" />
+                    <select
+                      value={selectedStoreId}
+                      onChange={(e) => setSelectedStoreId(e.target.value)}
+                      className="bg-transparent text-white font-bold focus:outline-none cursor-pointer"
+                    >
+                      <option value="all" className="bg-[#004724] text-white">
+                        Todas as Unidades (Rede Athleta)
+                      </option>
+                      {stores.map((s) => (
+                        <option key={s.id} value={s.id} className="bg-[#004724] text-white">
+                          {s.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Notificações de Auditoria / Correções */}
                   <button
-                    key={tab.id}
-                    onClick={() => setActiveTab(tab.id)}
-                    className={`px-3 py-2 rounded-xl transition-all flex items-center gap-1.5 whitespace-nowrap ${
-                      isActive
-                        ? "bg-[#FFC72C] text-[#004724] shadow-sm font-black"
-                        : "text-white/80 hover:bg-white/10 hover:text-white"
-                    }`}
+                    onClick={() => setActiveTab("auditoria")}
+                    className="relative p-2 rounded-xl bg-white/10 hover:bg-white/20 text-white transition-colors"
+                    title="Auditoria & Solicitações"
                   >
-                    <Icon className="w-4 h-4 shrink-0" />
-                    <span>{tab.label}</span>
-                    {tab.badge !== undefined && tab.badge > 0 && (
-                      <span
-                        className={`px-1.5 py-0.2 rounded-full text-[10px] ${
-                          isActive
-                            ? "bg-[#005C30] text-white"
-                            : "bg-[#FFC72C] text-[#004724]"
-                        }`}
-                      >
-                        {tab.badge}
+                    <Bell className="w-5 h-5" />
+                    {pendingCorrectionsCount > 0 && (
+                      <span className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-[#FFC72C] text-[#004724] font-bold text-[10px] flex items-center justify-center shadow-xs">
+                        {pendingCorrectionsCount}
                       </span>
                     )}
                   </button>
-                );
-              })}
-            </nav>
-          </div>
-        </div>
-      </header>
+
+                  {/* Perfil do Administrador / Proprietário */}
+                  <div className="flex items-center gap-2 pl-2 border-l border-white/20">
+                    <div className="w-8 h-8 rounded-full bg-[#FFC72C] text-[#004724] font-black flex items-center justify-center text-xs">
+                      AP
+                    </div>
+                    <div className="hidden sm:block text-left text-xs leading-tight">
+                      <span className="font-bold text-white block">Administrador Geral</span>
+                      <span className="text-white/70 text-[10px]">Proprietário Athleta</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* BARRA DE NAVEGAÇÃO DOS MÓDULOS ADMIN */}
+            <div className="bg-[#004724] border-t border-white/10">
+              <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <nav className="flex items-center gap-1 overflow-x-auto py-2 scrollbar-none text-xs font-bold">
+                  {tabsConfig.map((tab) => {
+                    const Icon = tab.icon;
+                    const isActive = activeTab === tab.id;
+
+                    return (
+                      <button
+                        key={tab.id}
+                        onClick={() => setActiveTab(tab.id)}
+                        className={`px-3 py-2 rounded-xl transition-all flex items-center gap-1.5 whitespace-nowrap ${
+                          isActive
+                            ? "bg-[#FFC72C] text-[#004724] shadow-sm font-black"
+                            : "text-white/80 hover:bg-white/10 hover:text-white"
+                        }`}
+                      >
+                        <Icon className="w-4 h-4 shrink-0" />
+                        <span>{tab.label}</span>
+                        {tab.badge !== undefined && tab.badge > 0 && (
+                          <span
+                            className={`px-1.5 py-0.2 rounded-full text-[10px] ${
+                              isActive
+                                ? "bg-[#005C30] text-white"
+                                : "bg-[#FFC72C] text-[#004724]"
+                            }`}
+                          >
+                            {tab.badge}
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </nav>
+              </div>
+            </div>
+          </header>
 
       {/* 3. CONTEÚDO PRINCIPAL DO MÓDULO ATIVO */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
@@ -352,7 +365,31 @@ function IndexPage() {
         {activeTab === "configuracoes" && <SettingsModule />}
       </main>
 
-      {/* 4. MODAL DE PERFIL INDIVIDUAL DO FUNCIONÁRIO */}
+          {/* RODAPÉ INSTITUCIONAL */}
+          <footer className="bg-white border-t border-slate-200 py-6 text-xs text-slate-500 mt-auto">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4">
+              <div className="flex items-center gap-2">
+                <AthletaLogo variant="compact" />
+                <span>
+                  © {new Date().getFullYear()} <strong>ATHLETA BRASIL</strong> — Sistema Homologado Portaria 671 MTE.
+                </span>
+              </div>
+
+              <div className="flex items-center gap-4 text-slate-400">
+                <span>Londrina - PR</span>
+                <span>•</span>
+                <span>Shopping Catuaí (CAT)</span>
+                <span>•</span>
+                <span>Shopping Boulevard (BLV)</span>
+                <span>•</span>
+                <span className="text-emerald-700 font-bold">Conexão Segura SSL</span>
+              </div>
+            </div>
+          </footer>
+        </>
+      )}
+
+      {/* MODAL DE PERFIL INDIVIDUAL DO FUNCIONÁRIO */}
       {profileEmployee && (
         <EmployeeProfileModal
           employee={profileEmployee}
@@ -363,7 +400,7 @@ function IndexPage() {
         />
       )}
 
-      {/* 5. MODAL DE DETALHES DAS MARCAÇÕES DO DIA COM FOTOS AO VIVO */}
+      {/* MODAL DE DETALHES DAS MARCAÇÕES DO DIA COM FOTOS AO VIVO */}
       {detailsRecord && (
         <DayDetailsModal
           record={detailsRecord}
@@ -374,28 +411,6 @@ function IndexPage() {
           }}
         />
       )}
-
-      {/* 6. RODAPÉ INSTITUCIONAL */}
-      <footer className="bg-white border-t border-slate-200 py-6 text-xs text-slate-500 mt-auto">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-2">
-            <AthletaLogo variant="compact" />
-            <span>
-              © {new Date().getFullYear()} <strong>ATHLETA BRASIL</strong> — Sistema Homologado Portaria 671 MTE.
-            </span>
-          </div>
-
-          <div className="flex items-center gap-4 text-slate-400">
-            <span>Londrina - PR</span>
-            <span>•</span>
-            <span>Shopping Catuaí (CAT)</span>
-            <span>•</span>
-            <span>Shopping Boulevard (BLV)</span>
-            <span>•</span>
-            <span className="text-emerald-700 font-bold">Conexão Segura SSL</span>
-          </div>
-        </div>
-      </footer>
     </div>
   );
 }

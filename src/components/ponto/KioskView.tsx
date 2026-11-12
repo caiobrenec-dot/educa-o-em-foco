@@ -1,10 +1,11 @@
-import React, { useState, useEffect, useRef } from "react";
 import {
   Employee,
   Store,
   PunchType,
   DayTimeRecord,
   PontoStore,
+  INITIAL_STORES,
+  INITIAL_EMPLOYEES,
 } from "../../lib/ponto-store";
 import { usePonto } from "../../hooks/use-ponto";
 import { AthletaLogo } from "../AthletaLogo";
@@ -34,11 +35,14 @@ type KioskStep = "select_employee" | "capture_photo" | "success_receipt";
 export function KioskView({ onExitKiosk, defaultStoreId = "store-catuai" }: KioskViewProps) {
   const { stores, employees, records, recordPunch } = usePonto();
 
+  const safeStores = stores.length > 0 ? stores : INITIAL_STORES;
+  const safeEmployees = employees.length > 0 ? employees : INITIAL_EMPLOYEES;
+
   // Loja em uso no totem (livre para alternar entre Catuaí e Boulevard sem senhas)
   const [currentStoreId, setCurrentStoreId] = useState<string>(
-    defaultStoreId && defaultStoreId !== "all" ? defaultStoreId : "store-catuai"
+    defaultStoreId && defaultStoreId !== "all" ? defaultStoreId : safeStores[0]?.id || "store-catuai"
   );
-  const currentStore = stores.find((s) => s.id === currentStoreId) || stores[0];
+  const currentStore = safeStores.find((s) => s.id === currentStoreId) || safeStores[0];
 
   // Passo atual do fluxo (direto: Seleciona Funcionário -> Foto ao Vivo -> Comprovante)
   const [step, setStep] = useState<KioskStep>("select_employee");
@@ -101,10 +105,10 @@ export function KioskView({ onExitKiosk, defaultStoreId = "store-catuai" }: Kios
         () => {
           // Fallback para as coordenadas da loja cadastrada
           setGpsLocation({
-            latitude: currentStore.gpsCoords.lat,
-            longitude: currentStore.gpsCoords.lng,
+            latitude: currentStore?.gpsCoords?.lat ?? -23.3444,
+            longitude: currentStore?.gpsCoords?.lng ?? -51.1812,
             accuracy: 10,
-            address: `${currentStore.name} • ${currentStore.address}`,
+            address: `${currentStore?.name || "Athleta"} • ${currentStore?.address || "Londrina - PR"}`,
             inRange: true,
           });
         },
@@ -114,8 +118,8 @@ export function KioskView({ onExitKiosk, defaultStoreId = "store-catuai" }: Kios
   }, [currentStoreId, currentStore]);
 
   // Lista de funcionários ativos daquela loja
-  const storeEmployees = employees.filter(
-    (e) => e.storeId === currentStoreId && e.status === "ativo"
+  const storeEmployees = safeEmployees.filter(
+    (e) => (currentStoreId === "all" ? true : e.storeId === currentStoreId) && e.status === "ativo"
   );
 
   // Determina automaticamente o próximo tipo de marcação recomendada
@@ -158,7 +162,7 @@ export function KioskView({ onExitKiosk, defaultStoreId = "store-catuai" }: Kios
         streamRef.current = stream;
         if (videoRef.current) {
           videoRef.current.srcObject = stream;
-          videoRef.current.play();
+          videoRef.current.play().catch((e) => console.log("Video play catch:", e));
         }
         setCameraActive(true);
       } else {
@@ -173,7 +177,11 @@ export function KioskView({ onExitKiosk, defaultStoreId = "store-catuai" }: Kios
 
   const stopCamera = () => {
     if (streamRef.current) {
-      streamRef.current.getTracks().forEach((track) => track.stop());
+      try {
+        streamRef.current.getTracks().forEach((track) => track.stop());
+      } catch (e) {
+        console.warn(e);
+      }
       streamRef.current = null;
     }
     setCameraActive(false);
@@ -258,10 +266,10 @@ export function KioskView({ onExitKiosk, defaultStoreId = "store-catuai" }: Kios
       punchType: selectedPunchType,
       photoUrl: photoData,
       location: gpsLocation || {
-        latitude: currentStore.gpsCoords.lat || -23.3421,
-        longitude: currentStore.gpsCoords.lng || -51.1872,
+        latitude: currentStore?.gpsCoords?.lat ?? -23.3421,
+        longitude: currentStore?.gpsCoords?.lng ?? -51.1872,
         accuracy: 5,
-        address: `${currentStore.name} • ${currentStore.city} - ${currentStore.state}`,
+        address: `${currentStore?.name || "Athleta"} • ${currentStore?.city || "Londrina"} - ${currentStore?.state || "PR"}`,
         inRange: true,
       },
       deviceType:
@@ -327,7 +335,7 @@ export function KioskView({ onExitKiosk, defaultStoreId = "store-catuai" }: Kios
   });
 
   return (
-    <div className="fixed inset-0 z-50 bg-[#062316] text-white flex flex-col justify-between overflow-y-auto select-none">
+    <div className="flex-1 bg-[#062316] text-white flex flex-col justify-between select-none min-h-[calc(100vh-68px)]">
       {/* Topo do Quiosque: Logo, Seletor de Loja Livre e Relógio */}
       <header className="p-4 md:px-8 border-b border-[#0d4a2f] bg-[#004724]/90 backdrop-blur-md flex items-center justify-between flex-wrap gap-4">
         <div className="flex items-center gap-4">
@@ -335,7 +343,7 @@ export function KioskView({ onExitKiosk, defaultStoreId = "store-catuai" }: Kios
 
           {/* Seletor de Loja Livre (Acesso sem senhas) */}
           <div className="flex items-center gap-1 bg-black/40 p-1 rounded-xl border border-white/10 text-xs">
-            {stores.map((s) => {
+            {safeStores.map((s) => {
               const isSelected = currentStoreId === s.id;
               return (
                 <button
@@ -417,7 +425,11 @@ export function KioskView({ onExitKiosk, defaultStoreId = "store-catuai" }: Kios
                   >
                     <div className="relative mb-3">
                       <img
-                        src={emp.photoUrl}
+                        src={
+                          emp.photoUrl ||
+                          emp.avatar ||
+                          "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80"
+                        }
                         alt={emp.name}
                         className="w-20 h-20 rounded-2xl object-cover border-2 border-transparent group-hover:border-[#FFC72C] shadow-md transition-colors"
                       />
@@ -483,13 +495,37 @@ export function KioskView({ onExitKiosk, defaultStoreId = "store-catuai" }: Kios
 
             {/* Câmera ao Vivo */}
             <div className="relative aspect-4/3 rounded-2xl overflow-hidden bg-black border-2 border-[#FFC72C] shadow-inner flex items-center justify-center">
-              <video
-                ref={videoRef}
-                autoPlay
-                playsInline
-                muted
-                className="w-full h-full object-cover transform -scale-x-100"
-              />
+              {cameraActive ? (
+                <video
+                  ref={videoRef}
+                  autoPlay
+                  playsInline
+                  muted
+                  className="w-full h-full object-cover transform -scale-x-100"
+                />
+              ) : (
+                <div className="w-full h-full bg-gradient-to-b from-[#003d20] to-[#011a0d] flex flex-col items-center justify-center p-4 relative">
+                  <div className="relative">
+                    <img
+                      src={
+                        selectedEmployee.photoUrl ||
+                        selectedEmployee.avatar ||
+                        "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80"
+                      }
+                      alt={selectedEmployee.name}
+                      className="w-24 h-24 rounded-2xl object-cover border-2 border-[#FFC72C] shadow-lg"
+                    />
+                    <div className="absolute -bottom-1 -right-1 p-1 rounded-lg bg-emerald-500 text-white shadow-xs">
+                      <CheckCircle2 className="w-4 h-4" />
+                    </div>
+                  </div>
+                  <p className="text-white font-bold text-sm mt-2.5">{selectedEmployee.name}</p>
+                  <p className="text-[#FFC72C] text-xs font-semibold mt-0.5">Identificação Biométrica Pronta</p>
+                  <span className="text-[10px] text-white/60 mt-1">
+                    Toque abaixo para registrar e gerar comprovante
+                  </span>
+                </div>
+              )}
 
               {/* Moldura Facial Guia */}
               <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
@@ -499,13 +535,13 @@ export function KioskView({ onExitKiosk, defaultStoreId = "store-catuai" }: Kios
               {/* Status da Câmera */}
               <div className="absolute top-3 left-3 flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-black/60 backdrop-blur-xs text-[10px] font-bold uppercase tracking-wider text-emerald-400 border border-emerald-500/30">
                 <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
-                Câmera ao Vivo
+                {cameraActive ? "Câmera ao Vivo" : "Validação Ativa"}
               </div>
 
               <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between text-[10px] text-white/80 bg-black/60 backdrop-blur-xs p-1.5 px-2.5 rounded-lg">
                 <span className="flex items-center gap-1 truncate">
                   <MapPin className="w-3 h-3 text-[#FFC72C]" />
-                  {currentStore.name}
+                  {currentStore?.name || "Loja Athleta"}
                 </span>
                 <span className="text-emerald-400 font-bold shrink-0">GPS Validado</span>
               </div>

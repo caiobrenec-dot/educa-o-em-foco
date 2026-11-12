@@ -178,7 +178,7 @@ export function StoresModule({
                     <strong>CNPJ:</strong> {store.cnpj}
                   </p>
                   <p>
-                    <strong>Raio GPS Totem:</strong> {store.gpsCoords.allowedRadiusMeters} metros
+                    <strong>Raio GPS Totem:</strong> {store.gpsCoords?.allowedRadiusMeters ?? 100} metros
                   </p>
                 </div>
 
