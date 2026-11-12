@@ -7,6 +7,8 @@ import { OverviewModule } from "../components/ponto/OverviewModule";
 import { EmployeesModule } from "../components/ponto/EmployeesModule";
 import { WeeklyControlModule } from "../components/ponto/WeeklyControlModule";
 import { TimeRecordsModule } from "../components/ponto/TimeRecordsModule";
+import { BankOfHoursModule } from "../components/ponto/BankOfHoursModule";
+import { PhotoAuditModule } from "../components/ponto/PhotoAuditModule";
 import { SchedulesModule } from "../components/ponto/SchedulesModule";
 import { StoresModule } from "../components/ponto/StoresModule";
 import { ReportsModule } from "../components/ponto/ReportsModule";
@@ -15,6 +17,7 @@ import { SettingsModule } from "../components/ponto/SettingsModule";
 import { EmployeeProfileModal } from "../components/ponto/EmployeeProfileModal";
 import { DayDetailsModal } from "../components/ponto/DayDetailsModal";
 import { KioskView } from "../components/ponto/KioskView";
+import { EmployeeSelfServiceView } from "../components/ponto/EmployeeSelfServiceView";
 import {
   LayoutDashboard,
   Users,
@@ -30,6 +33,9 @@ import {
   Clock,
   Sparkles,
   ChevronDown,
+  Scale,
+  Camera,
+  UserCheck,
 } from "lucide-react";
 
 export const Route = createFileRoute("/")({
@@ -41,15 +47,22 @@ export type TabType =
   | "funcionarios"
   | "controle-semanal"
   | "registro-ponto"
+  | "banco-horas"
+  | "auditoria-fotos"
   | "escalas"
   | "lojas"
   | "relatorios"
   | "auditoria"
   | "configuracoes";
 
+export type ViewMode = "admin" | "self_service" | "kiosk";
+
 function IndexPage() {
   const navigate = useNavigate();
   const { stores, employees, corrections } = usePonto();
+
+  // Modo de visualização geral do sistema (Proprietário ADM vs Colaborador Meu Ponto vs Totem Loja)
+  const [viewMode, setViewMode] = useState<ViewMode>("admin");
 
   const [activeTab, setActiveTab] = useState<TabType>("visao-geral");
   const [selectedStoreId, setSelectedStoreId] = useState<string>("all");
@@ -58,9 +71,6 @@ function IndexPage() {
   const [profileEmployee, setProfileEmployee] = useState<Employee | null>(null);
   const [detailsRecord, setDetailsRecord] = useState<DayTimeRecord | null>(null);
   const [detailsEmployee, setDetailsEmployee] = useState<Employee | null>(null);
-
-  // Modo quiosque direto na tela
-  const [isKioskActive, setIsKioskActive] = useState<boolean>(false);
 
   // Quantidade de solicitações pendentes de correção
   const pendingCorrectionsCount = corrections.filter((c) => c.status === "pendente").length;
@@ -75,24 +85,37 @@ function IndexPage() {
     }
   };
 
-  if (isKioskActive) {
+  // 1. MODO QUIOSQUE (TOTEM LOJA)
+  if (viewMode === "kiosk") {
     return (
       <KioskView
-        onExitKiosk={() => setIsKioskActive(false)}
-        defaultStoreId={selectedStoreId !== "all" ? selectedStoreId : "store-catuai"}
+        onExitKiosk={() => setViewMode("admin")}
+        defaultStoreId={selectedStoreId !== "all" ? selectedStoreId : undefined}
       />
     );
   }
 
+  // 2. PAINEL INDIVIDUAL DO FUNCIONÁRIO (MEU PONTO)
+  if (viewMode === "self_service") {
+    return (
+      <EmployeeSelfServiceView
+        onReturnToAdmin={() => setViewMode("admin")}
+      />
+    );
+  }
+
+  // Configuração das Abas do Painel dos Proprietários (ADM TOTAL)
   const tabsConfig: { id: TabType; label: string; icon: React.ElementType; badge?: number }[] = [
     { id: "visao-geral", label: "Visão Geral", icon: LayoutDashboard },
     { id: "funcionarios", label: "Funcionários", icon: Users },
     { id: "controle-semanal", label: "Controle Semanal", icon: CalendarDays },
     { id: "registro-ponto", label: "Registro de Ponto", icon: FileText },
+    { id: "banco-horas", label: "Banco de Horas", icon: Scale },
+    { id: "auditoria-fotos", label: "Auditoria de Fotos", icon: Camera },
     { id: "escalas", label: "Escalas", icon: CalendarRange },
     { id: "lojas", label: "Lojas", icon: Building2 },
     { id: "relatorios", label: "Relatórios", icon: BarChart3 },
-    { id: "auditoria", label: "Auditoria", icon: ShieldCheck, badge: pendingCorrectionsCount },
+    { id: "auditoria", label: "Trilha & Homologações", icon: ShieldCheck, badge: pendingCorrectionsCount },
     { id: "configuracoes", label: "Configurações", icon: Settings },
   ];
 
@@ -107,10 +130,34 @@ function IndexPage() {
               <AthletaLogo variant="white" size="md" subtitleText="ADMIN TOTAL" />
             </div>
 
+            {/* Alternador de Ambiente (ADM vs Meu Ponto vs Quiosque) */}
+            <div className="hidden md:flex items-center bg-[#004724] p-1 rounded-2xl border border-white/10 text-xs font-bold">
+              <button
+                onClick={() => setViewMode("admin")}
+                className="px-3.5 py-1.5 rounded-xl bg-[#FFC72C] text-[#004724] shadow-xs font-black"
+              >
+                ADM Total
+              </button>
+              <button
+                onClick={() => setViewMode("self_service")}
+                className="px-3.5 py-1.5 rounded-xl text-white/80 hover:text-white hover:bg-white/10 transition-colors flex items-center gap-1.5"
+              >
+                <UserCheck className="w-3.5 h-3.5 text-[#FFC72C]" />
+                Área do Colaborador (Meu Ponto)
+              </button>
+              <button
+                onClick={() => setViewMode("kiosk")}
+                className="px-3.5 py-1.5 rounded-xl text-white/80 hover:text-white hover:bg-white/10 transition-colors flex items-center gap-1.5"
+              >
+                <Tablet className="w-3.5 h-3.5 text-[#FFC72C]" />
+                Totem Quiosque
+              </button>
+            </div>
+
             {/* Ações Centrais e Direita */}
             <div className="flex items-center gap-3 md:gap-4">
               {/* Seletor de Loja no Topo */}
-              <div className="hidden sm:flex items-center gap-2 bg-[#004724] px-3 py-1.5 rounded-xl border border-white/10 text-xs">
+              <div className="hidden lg:flex items-center gap-2 bg-[#004724] px-3 py-1.5 rounded-xl border border-white/10 text-xs">
                 <Building2 className="w-4 h-4 text-[#FFC72C]" />
                 <select
                   value={selectedStoreId}
@@ -128,15 +175,24 @@ function IndexPage() {
                 </select>
               </div>
 
-              {/* Botão de Destaque: Modo Quiosque / Totem da Loja */}
+              {/* Botão de Destaque: Modo Quiosque Mobile */}
               <button
-                onClick={() => setIsKioskActive(true)}
-                className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-[#FFC72C] to-[#E6A817] hover:brightness-110 active:scale-95 text-[#004724] font-black text-xs uppercase tracking-wider transition-all shadow-md flex items-center gap-2"
-                title="Abrir tela cheia para o tablet ou computador fixo na loja"
+                onClick={() => setViewMode("kiosk")}
+                className="md:hidden px-3 py-2 rounded-xl bg-gradient-to-r from-[#FFC72C] to-[#E6A817] text-[#004724] font-black text-xs uppercase tracking-wider shadow-md flex items-center gap-1"
+                title="Abrir tela cheia para o tablet da loja"
               >
                 <Tablet className="w-4 h-4" />
-                <span className="hidden md:inline">Modo Quiosque (Totem Loja)</span>
-                <span className="md:hidden">Quiosque</span>
+                <span>Totem</span>
+              </button>
+
+              {/* Botão Atalho: Área do Colaborador Mobile */}
+              <button
+                onClick={() => setViewMode("self_service")}
+                className="md:hidden px-3 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white font-bold text-xs flex items-center gap-1"
+                title="Abrir Área Meu Ponto"
+              >
+                <UserCheck className="w-4 h-4 text-[#FFC72C]" />
+                <span>Meu Ponto</span>
               </button>
 
               {/* Notificações de Auditoria / Correções */}
@@ -158,7 +214,7 @@ function IndexPage() {
                 <div className="w-8 h-8 rounded-full bg-[#FFC72C] text-[#004724] font-black flex items-center justify-center text-xs">
                   AP
                 </div>
-                <div className="hidden lg:block text-left text-xs leading-tight">
+                <div className="hidden xl:block text-left text-xs leading-tight">
                   <span className="font-bold text-white block">Administrador Geral</span>
                   <span className="text-white/70 text-[10px]">Proprietário Athleta</span>
                 </div>
@@ -167,7 +223,7 @@ function IndexPage() {
           </div>
         </div>
 
-        {/* 2. BARRA DE NAVEGAÇÃO DOS 9 MÓDULOS */}
+        {/* 2. BARRA DE NAVEGAÇÃO DOS MÓDULOS */}
         <div className="bg-[#004724] border-t border-white/10">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <nav className="flex items-center gap-1 overflow-x-auto py-2 scrollbar-none text-xs font-bold">
@@ -179,7 +235,7 @@ function IndexPage() {
                   <button
                     key={tab.id}
                     onClick={() => setActiveTab(tab.id)}
-                    className={`px-3.5 py-2 rounded-xl transition-all flex items-center gap-2 whitespace-nowrap ${
+                    className={`px-3 py-2 rounded-xl transition-all flex items-center gap-1.5 whitespace-nowrap ${
                       isActive
                         ? "bg-[#FFC72C] text-[#004724] shadow-sm font-black"
                         : "text-white/80 hover:bg-white/10 hover:text-white"
@@ -216,7 +272,7 @@ function IndexPage() {
             onSelectDayRecord={(record, emp) => handleOpenDayDetails(record, emp)}
             selectedStoreId={selectedStoreId}
             onStoreChange={setSelectedStoreId}
-            onOpenKiosk={() => setIsKioskActive(true)}
+            onOpenKiosk={() => setViewMode("kiosk")}
           />
         )}
 
@@ -249,12 +305,30 @@ function IndexPage() {
           />
         )}
 
-        {/* MÓDULO 5: ESCALAS */}
+        {/* MÓDULO 5: BANCO DE HORAS (NOVO) */}
+        {activeTab === "banco-horas" && (
+          <BankOfHoursModule
+            selectedStoreId={selectedStoreId}
+            onStoreChange={setSelectedStoreId}
+            onSelectEmployee={(emp) => setProfileEmployee(emp)}
+          />
+        )}
+
+        {/* MÓDULO 6: AUDITORIA DE FOTOS (NOVO) */}
+        {activeTab === "auditoria-fotos" && (
+          <PhotoAuditModule
+            selectedStoreId={selectedStoreId}
+            onStoreChange={setSelectedStoreId}
+            onSelectEmployee={(emp) => setProfileEmployee(emp)}
+          />
+        )}
+
+        {/* MÓDULO 7: ESCALAS */}
         {activeTab === "escalas" && (
           <SchedulesModule selectedStoreId={selectedStoreId} />
         )}
 
-        {/* MÓDULO 6: LOJAS */}
+        {/* MÓDULO 8: LOJAS */}
         {activeTab === "lojas" && (
           <StoresModule
             selectedStoreId={selectedStoreId}
@@ -263,7 +337,7 @@ function IndexPage() {
           />
         )}
 
-        {/* MÓDULO 7: RELATÓRIOS */}
+        {/* MÓDULO 9: RELATÓRIOS */}
         {activeTab === "relatorios" && (
           <ReportsModule
             selectedStoreId={selectedStoreId}
@@ -271,10 +345,10 @@ function IndexPage() {
           />
         )}
 
-        {/* MÓDULO 8: AUDITORIA */}
+        {/* MÓDULO 10: AUDITORIA & HOMOLOGAÇÕES */}
         {activeTab === "auditoria" && <AuditModule />}
 
-        {/* MÓDULO 9: CONFIGURAÇÕES */}
+        {/* MÓDULO 11: CONFIGURAÇÕES */}
         {activeTab === "configuracoes" && <SettingsModule />}
       </main>
 
@@ -314,9 +388,9 @@ function IndexPage() {
           <div className="flex items-center gap-4 text-slate-400">
             <span>Londrina - PR</span>
             <span>•</span>
-            <span>Shopping Catuaí</span>
+            <span>Shopping Catuaí (CAT)</span>
             <span>•</span>
-            <span>Shopping Boulevard</span>
+            <span>Shopping Boulevard (BLV)</span>
             <span>•</span>
             <span className="text-emerald-700 font-bold">Conexão Segura SSL</span>
           </div>

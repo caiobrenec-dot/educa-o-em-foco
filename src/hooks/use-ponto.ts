@@ -9,6 +9,7 @@ import {
   CorrectionRequest,
   SystemSettings,
   DateScheduleOverride,
+  BankOfHoursEntry,
 } from "../lib/ponto-store";
 
 export function usePonto() {
@@ -20,6 +21,7 @@ export function usePonto() {
   const [corrections, setCorrections] = useState<CorrectionRequest[]>([]);
   const [settings, setSettings] = useState<SystemSettings>(PontoStore.getSettings());
   const [overrides, setOverrides] = useState<DateScheduleOverride[]>([]);
+  const [bankEntries, setBankEntries] = useState<BankOfHoursEntry[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
 
   const refresh = () => {
@@ -31,6 +33,7 @@ export function usePonto() {
     setCorrections(PontoStore.getCorrections());
     setSettings(PontoStore.getSettings());
     setOverrides(PontoStore.getScheduleOverrides());
+    setBankEntries(PontoStore.getBankOfHoursEntries());
     setIsLoaded(true);
   };
 
@@ -49,17 +52,21 @@ export function usePonto() {
     corrections,
     settings,
     overrides,
+    bankEntries,
     isLoaded,
     refresh,
     recordPunch: PontoStore.recordPunch.bind(PontoStore),
-    adjustPunch: PontoStore.adjustPunch.bind(PontoStore),
     requestCorrection: PontoStore.requestCorrection.bind(PontoStore),
     reviewCorrection: PontoStore.reviewCorrection.bind(PontoStore),
     saveScheduleOverride: PontoStore.saveScheduleOverride.bind(PontoStore),
-    addEmployee: PontoStore.addEmployee.bind(PontoStore),
     updateEmployee: PontoStore.updateEmployee.bind(PontoStore),
-    addStore: PontoStore.addStore.bind(PontoStore),
     updateSettings: PontoStore.updateSettings.bind(PontoStore),
-    resetDemoData: PontoStore.resetDemoData.bind(PontoStore),
+    getEmployeeBankSummary: PontoStore.getEmployeeBankSummary.bind(PontoStore),
+    addBankOfHoursAdjustment: PontoStore.addBankOfHoursAdjustment.bind(PontoStore),
+    getAllPunchesForAudit: PontoStore.getAllPunchesForAudit.bind(PontoStore),
+    validateKioskCode: PontoStore.validateKioskCode.bind(PontoStore),
+    regenerateKioskCode: PontoStore.regenerateKioskCode.bind(PontoStore),
+    clearDemoDataOnly: PontoStore.clearDemoDataOnly.bind(PontoStore),
+    regenerateDemoData: PontoStore.regenerateDemoData.bind(PontoStore),
   };
 }

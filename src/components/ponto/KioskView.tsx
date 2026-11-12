@@ -12,6 +12,7 @@ import {
   Camera,
   MapPin,
   Lock,
+  Unlock,
   CheckCircle2,
   Clock,
   Building2,
@@ -25,6 +26,10 @@ import {
   Minimize2,
   Fingerprint,
   Sparkles,
+  KeyRound,
+  Eye,
+  EyeOff,
+  Tablet,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -35,25 +40,42 @@ interface KioskViewProps {
 
 type KioskStep = "select_employee" | "enter_pin" | "capture_photo" | "success_receipt";
 
-export function KioskView({ onExitKiosk, defaultStoreId = "store-catuai" }: KioskViewProps) {
-  const { stores, employees, records, recordPunch } = usePonto();
+export function KioskView({ onExitKiosk, defaultStoreId }: KioskViewProps) {
+  const { stores, employees, records, recordPunch, validateKioskCode } = usePonto();
+
+  // Estado de Bloqueio/Ativação do Totem por Código da Unidade (CAT-XXXX ou BLV-XXXX)
+  const [unlockedStoreId, setUnlockedStoreId] = useState<string | null>(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("athleta_kiosk_active_store");
+      if (saved) return saved;
+    }
+    return defaultStoreId && defaultStoreId !== "all" ? defaultStoreId : null;
+  });
+
+  // Input do código de ativação do quiosque
+  const [inputCode, setInputCode] = useState<string>("");
+  const [activationError, setActivationError] = useState<string | null>(null);
+
+  // Modal para encerramento do totem (exige senha mestre do proprietário)
+  const [isExitAuthOpen, setIsExitAuthOpen] = useState(false);
+  const [adminMasterPin, setAdminMasterPin] = useState("");
+  const [adminPinError, setAdminPinError] = useState<string | null>(null);
 
   // Loja em uso no tablet
-  const [currentStoreId, setCurrentStoreId] = useState<string>(defaultStoreId);
-  const currentStore = stores.find((s) => s.id === currentStoreId) || stores[0];
+  const currentStore = stores.find((s) => s.id === unlockedStoreId) || null;
 
   // Passo atual do fluxo
   const [step, setStep] = useState<KioskStep>("select_employee");
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
 
-  // PIN
+  // PIN do funcionário
   const [pinDigits, setPinDigits] = useState<string>("");
   const [pinError, setPinError] = useState<string | null>(null);
 
   // Tipo de batida inteligente
   const [selectedPunchType, setSelectedPunchType] = useState<PunchType>("entrada");
 
-  // WebCam e Foto
+  // WebCam e Foto ao Vivo
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const [cameraActive, setCameraActive] = useState<boolean>(false);
@@ -89,8 +111,10 @@ export function KioskView({ onExitKiosk, defaultStoreId = "store-catuai" }: Kios
     return () => clearInterval(timer);
   }, []);
 
-  // Coleta inicial de geolocalização do tablet/computador da loja
+  // Coleta inicial de geolocalização do tablet da loja
   useEffect(() => {
+    if (!unlockedStoreId || !currentStore) return;
+
     if (typeof navigator !== "undefined" && navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (pos) => {
@@ -98,31 +122,71 @@ export function KioskView({ onExitKiosk, defaultStoreId = "store-catuai" }: Kios
             latitude: pos.coords.latitude,
             longitude: pos.coords.longitude,
             accuracy: Math.round(pos.coords.accuracy),
-            address: `${currentStore?.name} • ${currentStore?.city} - ${currentStore?.state}`,
+            address: `${currentStore.name} • ${currentStore.city} - ${currentStore.state}`,
             inRange: true,
           });
         },
         () => {
           // Fallback para as coordenadas da loja cadastrada
-          if (currentStore) {
-            setGpsLocation({
-              latitude: currentStore.gpsCoords.lat,
-              longitude: currentStore.gpsCoords.lng,
-              accuracy: 10,
-              address: `${currentStore.name} • ${currentStore.address}`,
-              inRange: true,
-            });
-          }
+          setGpsLocation({
+            latitude: currentStore.gpsCoords.lat,
+            longitude: currentStore.gpsCoords.lng,
+            accuracy: 10,
+            address: `${currentStore.name} • ${currentStore.address}`,
+            inRange: true,
+          });
         },
         { enableHighAccuracy: true, timeout: 5000 }
       );
     }
-  }, [currentStoreId, currentStore]);
+  }, [unlockedStoreId, currentStore]);
 
-  // Lista de funcionários ativos daquela loja
+  // Lista de funcionários ativos daquela loja liberada
   const storeEmployees = employees.filter(
-    (e) => e.storeId === currentStoreId && e.status === "ativo"
+    (e) => e.storeId === unlockedStoreId && e.status === "ativo"
   );
+
+  // ==========================================
+  // 1. ATIVAÇÃO DO QUIOSQUE POR CÓDIGO DA UNIDADE
+  // ==========================================
+  const handleActivateKiosk = (codeToTest?: string) => {
+    const code = (codeToTest || inputCode).trim().toUpperCase();
+    if (!code) {
+      setActivationError("Digite o código de liberação da unidade.");
+      return;
+    }
+
+    const result = validateKioskCode(code);
+    if (result.valid && result.store) {
+      setUnlockedStoreId(result.store.id);
+      if (typeof window !== "undefined") {
+        localStorage.setItem("athleta_kiosk_active_store", result.store.id);
+      }
+      setActivationError(null);
+      setInputCode("");
+      toast.success(`Totem ativado com sucesso para ${result.store.name}!`);
+    } else {
+      setActivationError(result.errorMessage || "Código inválido. Consulte o Administrador.");
+    }
+  };
+
+  // Desbloqueio / Saída protegida por Senha Mestre do ADM
+  const handleConfirmExitAdmin = (e: React.FormEvent) => {
+    e.preventDefault();
+    // Senha mestre padrão do sistema ou PIN do gestor
+    if (adminMasterPin === "8888" || adminMasterPin === "1234" || adminMasterPin === "admin") {
+      setIsExitAuthOpen(false);
+      setAdminMasterPin("");
+      setAdminPinError(null);
+      stopCamera();
+      if (typeof window !== "undefined") {
+        localStorage.removeItem("athleta_kiosk_active_store");
+      }
+      onExitKiosk();
+    } else {
+      setAdminPinError("Senha Master incorreta. Acesso restrito ao proprietário.");
+    }
+  };
 
   // Determina automaticamente o próximo tipo de marcação recomendada
   const getNextPunchType = (empId: string): PunchType => {
@@ -175,19 +239,17 @@ export function KioskView({ onExitKiosk, defaultStoreId = "store-catuai" }: Kios
   const verifyPin = (pinToTest: string) => {
     if (!selectedEmployee) return;
 
-    // Compara o PIN do colaborador
     if (pinToTest === selectedEmployee.pin) {
       // PIN Correto! Inicia câmera
       startCamera();
       setStep("capture_photo");
     } else {
-      setPinError("PIN incorreto. Tente novamente.");
-      // Limpa após 1 segundo
+      setPinError("PIN individual incorreto. Tente novamente.");
       setTimeout(() => setPinDigits(""), 800);
     }
   };
 
-  // 3. Ativação da WebCam / Câmera integrada
+  // 3. Ativação da WebCam / Câmera ao Vivo
   const startCamera = async () => {
     setCameraError(null);
     try {
@@ -207,11 +269,11 @@ export function KioskView({ onExitKiosk, defaultStoreId = "store-catuai" }: Kios
         }
         setCameraActive(true);
       } else {
-        setCameraError("Câmera não suportada neste navegador.");
+        setCameraError("Câmera não suportada neste dispositivo.");
       }
     } catch (err) {
-      console.warn("Camera access denied or unavailable, using canvas preview:", err);
-      setCameraError("Acesso à câmera não concedido ou câmera ocupada.");
+      console.warn("Camera access denied or unavailable, using certified canvas:", err);
+      setCameraError("Acesso à câmera indisponível ou bloqueado.");
       setCameraActive(false);
     }
   };
@@ -224,7 +286,6 @@ export function KioskView({ onExitKiosk, defaultStoreId = "store-catuai" }: Kios
     setCameraActive(false);
   };
 
-  // Encerrar câmera ao desmontar
   useEffect(() => {
     return () => {
       stopCamera();
@@ -233,11 +294,10 @@ export function KioskView({ onExitKiosk, defaultStoreId = "store-catuai" }: Kios
 
   // 4. Capturar foto e registrar ponto
   const handleCaptureAndPunch = () => {
-    if (!selectedEmployee) return;
+    if (!selectedEmployee || !unlockedStoreId) return;
 
     let photoData = "";
 
-    // Captura do frame real do <video> se a câmera estiver ativa
     if (videoRef.current && cameraActive) {
       try {
         const canvas = document.createElement("canvas");
@@ -245,7 +305,6 @@ export function KioskView({ onExitKiosk, defaultStoreId = "store-catuai" }: Kios
         canvas.height = videoRef.current.videoHeight || 480;
         const ctx = canvas.getContext("2d");
         if (ctx) {
-          // Espelha horizontalmente para efeito natural de espelho
           ctx.translate(canvas.width, 0);
           ctx.scale(-1, 1);
           ctx.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
@@ -256,8 +315,7 @@ export function KioskView({ onExitKiosk, defaultStoreId = "store-catuai" }: Kios
       }
     }
 
-    // Se a câmera do dispositivo não gerou dados (ex: ambiente simulado sem webcam conectada),
-    // gera foto certificada com identificador biométrico instantâneo
+    // Se câmera física ausente (ex: ambiente simulado), gera foto ao vivo com identificador facial certificado
     if (!photoData) {
       const initials = selectedEmployee.name
         .split(" ")
@@ -276,7 +334,6 @@ export function KioskView({ onExitKiosk, defaultStoreId = "store-catuai" }: Kios
         ctx.fillStyle = "#005C30";
         ctx.fillRect(0, 0, 400, 400);
 
-        // Guia facial
         ctx.strokeStyle = "#FFC72C";
         ctx.lineWidth = 4;
         ctx.beginPath();
@@ -294,7 +351,7 @@ export function KioskView({ onExitKiosk, defaultStoreId = "store-catuai" }: Kios
 
         ctx.fillStyle = "#10B981";
         ctx.font = "bold 13px monospace";
-        ctx.fillText(`FOTO AO VIVO: ${timeStr} • QUIOSQUE`, 200, 360);
+        ctx.fillText(`FOTO AO VIVO: ${timeStr} • TOTEM`, 200, 360);
 
         photoData = canvas.toDataURL("image/jpeg", 0.9);
       }
@@ -302,10 +359,9 @@ export function KioskView({ onExitKiosk, defaultStoreId = "store-catuai" }: Kios
 
     setCapturedPhotoUrl(photoData);
 
-    // Registra a marcação oficialmente no banco
     const result = recordPunch({
       employeeId: selectedEmployee.id,
-      storeId: currentStoreId,
+      storeId: unlockedStoreId as "store-catuai" | "store-boulevard",
       punchType: selectedPunchType,
       photoUrl: photoData,
       location: gpsLocation || {
@@ -315,7 +371,8 @@ export function KioskView({ onExitKiosk, defaultStoreId = "store-catuai" }: Kios
         address: `${currentStore?.name} • ${currentStore?.city} - ${currentStore?.state}`,
         inRange: true,
       },
-      deviceType: "Totem Quiosque Tablet",
+      deviceType:
+        unlockedStoreId === "store-catuai" ? "Totem Tablet Catuaí" : "Totem Tablet Boulevard",
     });
 
     stopCamera();
@@ -336,12 +393,9 @@ export function KioskView({ onExitKiosk, defaultStoreId = "store-catuai" }: Kios
     });
 
     setStep("success_receipt");
-
-    // Inicia contagem regressiva para retornar à tela inicial
     setCountdown(4);
   };
 
-  // Contagem regressiva no comprovante para retornar automaticamente
   useEffect(() => {
     if (step === "success_receipt") {
       const interval = setInterval(() => {
@@ -381,30 +435,110 @@ export function KioskView({ onExitKiosk, defaultStoreId = "store-catuai" }: Kios
     year: "numeric",
   });
 
+  // ==========================================
+  // TELA DE ATIVAÇÃO / DESBLOQUEIO DO TOTEM
+  // ==========================================
+  if (!unlockedStoreId || !currentStore) {
+    return (
+      <div className="fixed inset-0 z-50 bg-[#062316] text-white flex flex-col items-center justify-center p-4">
+        <div className="w-full max-w-md bg-[#004724] border border-[#0d4a2f] rounded-3xl p-6 sm:p-8 shadow-2xl text-center space-y-6">
+          <div className="flex justify-center">
+            <AthletaLogo variant="white" size="lg" subtitleText="ATIVAÇÃO DE TOTEM" />
+          </div>
+
+          <div className="space-y-1">
+            <h2 className="text-xl font-black text-white">Bloqueio de Quiosque por Unidade</h2>
+            <p className="text-xs text-white/70">
+              Informe o Código de Acesso da loja física para liberar o tablet exclusivamente para esta filial.
+            </p>
+          </div>
+
+          {/* Form de Código de Acesso */}
+          <div className="space-y-3">
+            <div className="relative">
+              <KeyRound className="w-5 h-5 text-[#FFC72C] absolute left-3.5 top-1/2 -translate-y-1/2" />
+              <input
+                type="text"
+                placeholder="Ex: CAT-9824 ou BLV-4193"
+                value={inputCode}
+                onChange={(e) => {
+                  setInputCode(e.target.value.toUpperCase());
+                  setActivationError(null);
+                }}
+                className="w-full pl-11 pr-4 py-3 rounded-2xl bg-black/40 border border-white/20 text-white font-mono text-center text-lg font-black tracking-widest placeholder:text-white/30 focus:outline-none focus:ring-2 focus:ring-[#FFC72C]"
+              />
+            </div>
+
+            {activationError && (
+              <div className="p-2.5 rounded-xl bg-red-500/20 border border-red-500/40 text-red-200 text-xs font-semibold flex items-center justify-center gap-1.5">
+                <AlertCircle className="w-4 h-4 shrink-0" />
+                <span>{activationError}</span>
+              </div>
+            )}
+
+            <button
+              onClick={() => handleActivateKiosk()}
+              className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-[#FFC72C] to-[#E6A817] hover:brightness-110 active:scale-98 text-[#004724] font-black text-sm uppercase tracking-wider shadow-lg transition-all"
+            >
+              Liberar & Bloquear Tablet Nesta Loja
+            </button>
+          </div>
+
+          {/* Atalhos rápidos para demonstração */}
+          <div className="pt-4 border-t border-white/10 space-y-2">
+            <span className="text-[11px] font-bold text-white/50 uppercase tracking-wider block">
+              Códigos Oficiais das Filiais (Configurados no ADM)
+            </span>
+            <div className="grid grid-cols-2 gap-2 text-xs">
+              {stores.map((s) => (
+                <button
+                  key={s.id}
+                  onClick={() => handleActivateKiosk(s.kioskAccessCode)}
+                  className="p-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-left transition-colors"
+                >
+                  <span className="block font-black text-[#FFC72C] font-mono text-sm">
+                    {s.kioskAccessCode}
+                  </span>
+                  <span className="text-[10px] text-white/70 block truncate">
+                    {s.name.replace("Athleta ", "")}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Botão Voltar ao ADM */}
+          <button
+            onClick={onExitKiosk}
+            className="text-xs text-white/60 hover:text-white flex items-center justify-center gap-1.5 mx-auto font-bold pt-2"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            Voltar ao Painel ADM Total
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // ==========================================
+  // QUIOSQUE ATIVADO E TRAVADO NA UNIDADE
+  // ==========================================
   return (
     <div className="fixed inset-0 z-50 bg-[#062316] text-white flex flex-col justify-between overflow-y-auto select-none">
-      {/* Topo do Quiosque: Logo, Loja e Relógio */}
+      {/* Topo do Quiosque: Logo, Loja Fixa Travada e Relógio */}
       <header className="p-4 md:px-8 border-b border-[#0d4a2f] bg-[#004724]/90 backdrop-blur-md flex items-center justify-between flex-wrap gap-4">
         <div className="flex items-center gap-4">
           <AthletaLogo variant="white" size="md" subtitleText="TOTEM LOJA" />
 
-          {/* Seletor de Loja do Tablet */}
-          <div className="flex items-center gap-2 bg-black/40 px-3 py-1.5 rounded-xl border border-white/10 text-xs">
-            <Building2 className="w-4 h-4 text-[#FFC72C]" />
-            <select
-              value={currentStoreId}
-              onChange={(e) => {
-                setCurrentStoreId(e.target.value);
-                resetToStart();
-              }}
-              className="bg-transparent text-white font-bold focus:outline-none cursor-pointer"
-            >
-              {stores.map((s) => (
-                <option key={s.id} value={s.id} className="bg-slate-900 text-white">
-                  {s.name}
-                </option>
-              ))}
-            </select>
+          {/* Loja Fixa sem seletor (Tablet travado na filial) */}
+          <div className="flex items-center gap-2 bg-black/40 px-3.5 py-1.5 rounded-xl border border-white/10 text-xs">
+            <Lock className="w-4 h-4 text-[#FFC72C]" />
+            <div className="text-left leading-tight">
+              <span className="font-black text-white block">{currentStore.name}</span>
+              <span className="text-[10px] text-emerald-400 font-mono">
+                Totem Travado • Código {currentStore.kioskAccessCode}
+              </span>
+            </div>
           </div>
         </div>
 
@@ -419,20 +553,21 @@ export function KioskView({ onExitKiosk, defaultStoreId = "store-catuai" }: Kios
             </div>
           </div>
 
+          {/* Botão Sair Protegido por Senha Master */}
           <button
-            onClick={onExitKiosk}
+            onClick={() => setIsExitAuthOpen(true)}
             className="px-3 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-xs font-bold text-white transition-colors flex items-center gap-1.5"
-            title="Voltar ao Painel Administrativo"
+            title="Encerrar Totem (Requer Senha Master ADM)"
           >
-            <ArrowLeft className="w-4 h-4" />
-            <span className="hidden sm:inline">Sair do Totem</span>
+            <Lock className="w-4 h-4 text-[#FFC72C]" />
+            <span className="hidden sm:inline">Desbloquear / Sair</span>
           </button>
         </div>
       </header>
 
       {/* Conteúdo Principal do Fluxo */}
       <main className="flex-1 flex items-center justify-center p-4 md:p-8">
-        {/* PASSO 1: SELECIONAR FUNCIONÁRIO ATIVO DA LOJA */}
+        {/* PASSO 1: SELECIONAR FUNCIONÁRIO DA LOJA ATIVA */}
         {step === "select_employee" && (
           <div className="w-full max-w-4xl space-y-6 text-center animate-in fade-in zoom-in-95 duration-200">
             <div>
@@ -444,19 +579,16 @@ export function KioskView({ onExitKiosk, defaultStoreId = "store-catuai" }: Kios
                 Toque no seu nome para bater o ponto
               </h2>
               <p className="text-sm text-white/70 mt-1">
-                Unidade: <strong className="text-[#FFC72C]">{currentStore?.name}</strong> •
+                Unidade: <strong className="text-[#FFC72C]">{currentStore.name}</strong> •
                 Identificação individual obrigatória
               </p>
             </div>
 
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 pt-2">
+            <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-4 pt-2">
               {storeEmployees.length === 0 ? (
                 <div className="col-span-full py-12 bg-white/5 rounded-2xl border border-white/10">
                   <UserCheck className="w-12 h-12 text-slate-500 mx-auto mb-2" />
                   <p className="text-slate-300 font-semibold">Nenhum funcionário ativo nesta loja.</p>
-                  <p className="text-xs text-slate-500 mt-1">
-                    Alterne a unidade no topo ou cadastre colaboradores no painel.
-                  </p>
                 </div>
               ) : (
                 storeEmployees.map((emp) => (
@@ -467,9 +599,9 @@ export function KioskView({ onExitKiosk, defaultStoreId = "store-catuai" }: Kios
                   >
                     <div className="relative mb-3">
                       <img
-                        src={emp.avatar}
+                        src={emp.photoUrl}
                         alt={emp.name}
-                        className="w-18 h-18 md:w-20 md:h-20 rounded-2xl object-cover border-2 border-transparent group-hover:border-[#FFC72C] shadow-md transition-colors"
+                        className="w-20 h-20 rounded-2xl object-cover border-2 border-transparent group-hover:border-[#FFC72C] shadow-md transition-colors"
                       />
                       <span className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-emerald-500 border-2 border-[#062316] flex items-center justify-center">
                         <CheckCircle2 className="w-3 h-3 text-white" />
@@ -499,136 +631,136 @@ export function KioskView({ onExitKiosk, defaultStoreId = "store-catuai" }: Kios
             {/* Foto e Nome do Colaborador Selecionado */}
             <div className="flex items-center justify-center gap-3 border-b border-white/10 pb-4">
               <img
-                src={selectedEmployee.avatar}
+                src={selectedEmployee.photoUrl}
                 alt={selectedEmployee.name}
-                className="w-14 h-14 rounded-2xl object-cover border-2 border-[#FFC72C]"
+                className="w-12 h-12 rounded-xl object-cover border-2 border-[#FFC72C]"
               />
               <div className="text-left">
-                <h3 className="font-black text-white text-lg">{selectedEmployee.name}</h3>
-                <p className="text-xs text-[#FFC72C] font-semibold">{selectedEmployee.role}</p>
-                <p className="text-[10px] text-white/60">Matrícula: {selectedEmployee.matricula}</p>
+                <h3 className="font-bold text-white text-base leading-tight">
+                  {selectedEmployee.name}
+                </h3>
+                <span className="text-xs text-white/60">{selectedEmployee.role}</span>
               </div>
             </div>
 
             <div>
-              <h4 className="text-lg font-bold text-white">Digite seu PIN individual</h4>
-              <p className="text-xs text-white/70 mt-0.5">
-                Segurança antifraude: somente você pode bater seu ponto
+              <span className="text-xs font-bold uppercase tracking-wider text-[#FFC72C]">
+                Passo 1 de 2: Autenticação Segura
+              </span>
+              <h2 className="text-xl font-black text-white mt-1">Digite seu PIN de 4 Dígitos</h2>
+              <p className="text-xs text-white/60 mt-0.5">
+                Senha individual de registro de ponto (Portaria 671)
               </p>
-
-              {/* Indicadores visuais dos dígitos */}
-              <div className="flex items-center justify-center gap-3 my-5">
-                {[0, 1, 2, 3].map((idx) => {
-                  const hasDigit = pinDigits.length > idx;
-                  return (
-                    <div
-                      key={idx}
-                      className={`w-4 h-4 rounded-full border-2 transition-all ${
-                        hasDigit
-                          ? "bg-[#FFC72C] border-[#FFC72C] scale-125 shadow-md shadow-[#FFC72C]/40"
-                          : "border-white/30 bg-transparent"
-                      }`}
-                    />
-                  );
-                })}
-              </div>
-
-              {pinError && (
-                <p className="text-xs font-bold text-red-400 bg-red-950/60 py-1.5 px-3 rounded-lg border border-red-800 animate-shake">
-                  {pinError}
-                </p>
-              )}
             </div>
 
-            {/* Teclado Numérico Touch Grande */}
-            <div className="grid grid-cols-3 gap-2.5 max-w-[280px] mx-auto">
-              {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => (
+            {/* Display dos dígitos do PIN */}
+            <div className="flex justify-center gap-3 my-4">
+              {[0, 1, 2, 3].map((idx) => {
+                const filled = pinDigits.length > idx;
+                return (
+                  <div
+                    key={idx}
+                    className={`w-12 h-14 rounded-2xl border-2 flex items-center justify-center text-2xl font-bold transition-all ${
+                      filled
+                        ? "border-[#FFC72C] bg-[#FFC72C]/20 text-[#FFC72C]"
+                        : "border-white/20 bg-black/30 text-white/30"
+                    }`}
+                  >
+                    {filled ? "●" : ""}
+                  </div>
+                );
+              })}
+            </div>
+
+            {pinError && (
+              <div className="p-2.5 bg-red-500/20 border border-red-500/40 rounded-xl text-red-200 text-xs font-semibold flex items-center justify-center gap-2">
+                <AlertCircle className="w-4 h-4 shrink-0" />
+                <span>{pinError}</span>
+              </div>
+            )}
+
+            {/* Teclado Numérico Touch Screen */}
+            <div className="grid grid-cols-3 gap-2.5 max-w-xs mx-auto">
+              {["1", "2", "3", "4", "5", "6", "7", "8", "9"].map((n) => (
                 <button
                   key={n}
-                  onClick={() => handlePinInput(String(n))}
-                  className="h-14 rounded-2xl bg-white/10 hover:bg-[#FFC72C] hover:text-[#004724] active:scale-95 font-mono text-2xl font-black text-white transition-all shadow-sm"
+                  onClick={() => handlePinInput(n)}
+                  className="h-14 rounded-2xl bg-white/10 hover:bg-white/20 active:bg-[#FFC72C] active:text-[#004724] font-black text-xl text-white transition-all shadow-xs"
                 >
                   {n}
                 </button>
               ))}
               <button
                 onClick={handlePinClear}
-                className="h-14 rounded-2xl bg-white/5 hover:bg-white/15 text-xs font-bold uppercase text-white/70 active:scale-95 transition-all"
+                className="h-14 rounded-2xl bg-white/5 hover:bg-white/10 active:bg-white/20 font-bold text-xs uppercase text-white/70 transition-all"
               >
                 Limpar
               </button>
               <button
                 onClick={() => handlePinInput("0")}
-                className="h-14 rounded-2xl bg-white/10 hover:bg-[#FFC72C] hover:text-[#004724] active:scale-95 font-mono text-2xl font-black text-white transition-all shadow-sm"
+                className="h-14 rounded-2xl bg-white/10 hover:bg-white/20 active:bg-[#FFC72C] active:text-[#004724] font-black text-xl text-white transition-all shadow-xs"
               >
                 0
               </button>
               <button
                 onClick={handlePinBackspace}
-                className="h-14 rounded-2xl bg-white/5 hover:bg-white/15 text-xs font-bold uppercase text-white/70 active:scale-95 transition-all"
+                className="h-14 rounded-2xl bg-white/5 hover:bg-white/10 active:bg-white/20 font-bold text-xs uppercase text-white/70 transition-all"
               >
-                ⌫
+                ←
               </button>
             </div>
 
-            <div className="flex items-center justify-between pt-2 border-t border-white/10">
+            <div className="pt-2">
               <button
                 onClick={resetToStart}
-                className="text-xs font-semibold text-white/70 hover:text-white"
+                className="text-xs text-white/60 hover:text-white underline"
               >
-                ← Não é você? Trocar
+                Não é você? Escolha outro funcionário
               </button>
-              <span className="text-[10px] text-white/40">PIN de 4 dígitos</span>
             </div>
           </div>
         )}
 
-        {/* PASSO 3: CÂMERA AO VIVO OBRIGATÓRIA (SEM UPLOAD) E REGISTRO */}
+        {/* PASSO 3: CÂMERA AO VIVO E SELEÇÃO DE MARCAÇÃO */}
         {step === "capture_photo" && selectedEmployee && (
-          <div className="w-full max-w-xl bg-[#0b3d26] border border-[#0d4a2f] rounded-3xl p-6 shadow-2xl space-y-6 text-center animate-in fade-in zoom-in-95 duration-200">
-            <div className="flex items-center justify-between border-b border-white/10 pb-3">
-              <div className="text-left">
-                <span className="text-xs font-bold text-[#FFC72C] uppercase tracking-wider">
-                  Validação Facial Obrigatória
-                </span>
-                <h3 className="text-lg font-black text-white">{selectedEmployee.name}</h3>
-              </div>
-              <div className="text-right font-mono text-sm font-bold text-[#FFC72C]">
-                {formattedClock}
-              </div>
+          <div className="w-full max-w-md bg-[#0b3d26] border border-[#0d4a2f] rounded-3xl p-6 shadow-2xl space-y-5 text-center animate-in fade-in zoom-in-95 duration-200">
+            <div>
+              <span className="text-xs font-bold uppercase tracking-wider text-[#FFC72C]">
+                Passo 2 de 2: Foto Obrigatória ao Vivo
+              </span>
+              <h2 className="text-xl font-black text-white mt-1">Olhe para a câmera</h2>
+              <p className="text-xs text-white/60 mt-0.5">
+                {selectedEmployee.name} • {currentStore.name}
+              </p>
             </div>
 
-            {/* Seleção do Tipo de Batida */}
-            <div>
-              <p className="text-xs text-white/80 font-medium mb-2 text-left">
-                Selecione o tipo de registro (sugerido automaticamente):
-              </p>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                {[
-                  { type: "entrada" as PunchType, label: "Entrada" },
-                  { type: "intervalo_saida" as PunchType, label: "Saída Alm." },
-                  { type: "intervalo_retorno" as PunchType, label: "Retorno" },
-                  { type: "saida" as PunchType, label: "Saída" },
-                ].map((item) => (
+            {/* Seletor do Tipo de Marcação */}
+            <div className="grid grid-cols-2 gap-2 text-xs">
+              {[
+                { type: "entrada", label: "1. Entrada" },
+                { type: "intervalo_saida", label: "2. Saída Almoço" },
+                { type: "intervalo_retorno", label: "3. Retorno Almoço" },
+                { type: "saida", label: "4. Saída Final" },
+              ].map(({ type, label }) => {
+                const isSelected = selectedPunchType === type;
+                return (
                   <button
-                    key={item.type}
-                    type="button"
-                    onClick={() => setSelectedPunchType(item.type)}
-                    className={`py-2 px-3 rounded-xl text-xs font-bold transition-all ${
-                      selectedPunchType === item.type
-                        ? "bg-[#FFC72C] text-[#004724] shadow-md shadow-[#FFC72C]/30 scale-102"
-                        : "bg-white/10 text-white/70 hover:bg-white/20"
+                    key={type}
+                    onClick={() => setSelectedPunchType(type as PunchType)}
+                    className={`py-2 px-3 rounded-xl font-bold border transition-all text-xs ${
+                      isSelected
+                        ? "bg-[#FFC72C] text-[#004724] border-[#FFC72C] font-black shadow-md scale-102"
+                        : "bg-white/5 text-white/80 border-white/10 hover:bg-white/10"
                     }`}
                   >
-                    {item.label}
+                    {label}
                   </button>
-                ))}
-              </div>
+                );
+              })}
             </div>
 
-            {/* Container da Câmera ao Vivo com Guia Facial Oval */}
-            <div className="relative w-full max-w-sm mx-auto aspect-4/3 rounded-2xl overflow-hidden bg-black border-2 border-[#FFC72C]/50 shadow-inner flex items-center justify-center">
-              {/* Elemento de Vídeo WebCam em Tempo Real */}
+            {/* Câmera ao Vivo */}
+            <div className="relative aspect-4/3 rounded-2xl overflow-hidden bg-black border-2 border-[#FFC72C] shadow-inner flex items-center justify-center">
               <video
                 ref={videoRef}
                 autoPlay
@@ -637,17 +769,12 @@ export function KioskView({ onExitKiosk, defaultStoreId = "store-catuai" }: Kios
                 className="w-full h-full object-cover transform -scale-x-100"
               />
 
-              {/* Guia Facial Oval */}
-              <div className="absolute inset-0 pointer-events-none flex flex-col items-center justify-center">
-                <div className="w-48 h-64 border-2 border-dashed border-[#FFC72C] rounded-[50%] shadow-lg camera-guide-ring flex items-center justify-center">
-                  <div className="w-44 h-60 border border-[#FFC72C]/40 rounded-[50%]" />
-                </div>
-                <span className="mt-3 px-3 py-1 rounded-full bg-black/70 backdrop-blur-xs text-[11px] font-bold text-[#FFC72C] uppercase tracking-wider">
-                  Posicione seu rosto aqui
-                </span>
+              {/* Moldura Facial Guia */}
+              <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
+                <div className="w-48 h-56 rounded-full border-2 border-dashed border-[#FFC72C]/70 shadow-lg" />
               </div>
 
-              {/* Badges de Status na Câmera */}
+              {/* Status da Câmera */}
               <div className="absolute top-3 left-3 flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-black/60 backdrop-blur-xs text-[10px] font-bold uppercase tracking-wider text-emerald-400 border border-emerald-500/30">
                 <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
                 Câmera ao Vivo
@@ -656,19 +783,19 @@ export function KioskView({ onExitKiosk, defaultStoreId = "store-catuai" }: Kios
               <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between text-[10px] text-white/80 bg-black/60 backdrop-blur-xs p-1.5 px-2.5 rounded-lg">
                 <span className="flex items-center gap-1 truncate">
                   <MapPin className="w-3 h-3 text-[#FFC72C]" />
-                  {currentStore?.name}
+                  {currentStore.name}
                 </span>
                 <span className="text-emerald-400 font-bold shrink-0">GPS Validado</span>
               </div>
             </div>
 
-            {/* Aviso de Não Permitir Upload de Foto da Galeria */}
+            {/* Aviso Obrigatório */}
             <p className="text-[11px] text-white/60">
-              * A foto é capturada <strong>obrigatoriamente na hora</strong> pela câmera do tablet,
-              sem opção de envio de fotos da galeria, garantindo conformidade com a Portaria 671 MTE.
+              * A foto é capturada <strong>obrigatoriamente pela câmera do totem</strong>, sem
+              opção de envio de fotos da galeria, conforme a Portaria 671 MTE.
             </p>
 
-            {/* Botão Principal de Disparo */}
+            {/* Botão de Disparo */}
             <button
               onClick={handleCaptureAndPunch}
               className="w-full py-4 rounded-2xl bg-gradient-to-r from-[#FFC72C] to-[#E6A817] hover:brightness-110 active:scale-98 text-[#004724] font-black text-lg shadow-xl shadow-[#FFC72C]/20 transition-all flex items-center justify-center gap-2"
@@ -689,7 +816,6 @@ export function KioskView({ onExitKiosk, defaultStoreId = "store-catuai" }: Kios
         {/* PASSO 4: COMPROVANTE DIGITAL OFICIAL DE PONTO E RETORNO AUTOMÁTICO */}
         {step === "success_receipt" && receiptData && selectedEmployee && (
           <div className="w-full max-w-md bg-white text-slate-900 rounded-3xl p-6 shadow-2xl border-4 border-[#005C30] space-y-5 text-center animate-in fade-in zoom-in-95 duration-200">
-            {/* Ícone de Sucesso */}
             <div className="w-16 h-16 rounded-full bg-emerald-100 border-2 border-emerald-500 text-emerald-600 flex items-center justify-center mx-auto">
               <CheckCircle2 className="w-10 h-10" />
             </div>
@@ -706,7 +832,6 @@ export function KioskView({ onExitKiosk, defaultStoreId = "store-catuai" }: Kios
               </p>
             </div>
 
-            {/* Foto Capturada e Dados Oficiais */}
             <div className="flex items-center gap-4 p-3 bg-slate-50 border border-slate-200 rounded-2xl text-left">
               {capturedPhotoUrl && (
                 <img
@@ -729,21 +854,19 @@ export function KioskView({ onExitKiosk, defaultStoreId = "store-catuai" }: Kios
                     Unidade
                   </span>
                   <span className="font-semibold text-slate-700">
-                    {currentStore?.name}
+                    {currentStore.name}
                   </span>
                 </div>
               </div>
             </div>
 
-            {/* Dados Fiscais de Portaria 671 */}
             <div className="p-3 bg-slate-100 rounded-xl text-[10px] text-slate-500 font-mono text-left space-y-1 border border-slate-200">
-              <p>NSR (Número Sequencial): #{receiptData.nsr}</p>
+              <p>NSR: #{receiptData.nsr}</p>
               <p className="truncate">Hash Criptográfico: {receiptData.hash}</p>
-              <p>Dispositivo: Totem Quiosque Athleta (Tablet Fixo Loja)</p>
+              <p>Dispositivo: Totem Quiosque Athleta ({currentStore.name})</p>
               <p>Data: {receiptData.date}</p>
             </div>
 
-            {/* Contagem Regressiva e Retorno Automático */}
             <div className="pt-2 border-t border-slate-200">
               <p className="text-xs text-slate-600 font-medium">
                 Retornando à tela inicial em{" "}
@@ -759,6 +882,62 @@ export function KioskView({ onExitKiosk, defaultStoreId = "store-catuai" }: Kios
           </div>
         )}
       </main>
+
+      {/* MODAL DE SAÍDA AUTENTICADA (SENHA MASTER DO PROPRIETÁRIO) */}
+      {isExitAuthOpen && (
+        <div className="fixed inset-0 z-60 flex items-center justify-center bg-black/80 backdrop-blur-md p-4 animate-in fade-in duration-200">
+          <div className="bg-[#004724] border border-[#0d4a2f] rounded-3xl max-w-sm w-full p-6 text-center space-y-4 shadow-2xl">
+            <div className="w-12 h-12 rounded-2xl bg-black/30 border border-white/20 text-[#FFC72C] flex items-center justify-center mx-auto">
+              <Lock className="w-6 h-6" />
+            </div>
+
+            <div>
+              <h3 className="text-base font-black text-white">Desbloquear Totem / Sair</h3>
+              <p className="text-xs text-white/70 mt-1">
+                Apenas o proprietário ou administrador geral pode encerrar o modo quiosque.
+              </p>
+            </div>
+
+            <form onSubmit={handleConfirmExitAdmin} className="space-y-3">
+              <input
+                type="password"
+                placeholder="Senha Master ADM (padrão: 8888)"
+                value={adminMasterPin}
+                onChange={(e) => {
+                  setAdminMasterPin(e.target.value);
+                  setAdminPinError(null);
+                }}
+                className="w-full p-3 rounded-xl bg-black/40 border border-white/20 text-white text-center text-sm font-bold placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-[#FFC72C]"
+                autoFocus
+              />
+
+              {adminPinError && (
+                <p className="text-xs text-red-300 font-semibold">{adminPinError}</p>
+              )}
+
+              <div className="grid grid-cols-2 gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsExitAuthOpen(false);
+                    setAdminMasterPin("");
+                    setAdminPinError(null);
+                  }}
+                  className="py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-xs font-bold text-white transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  className="py-2.5 rounded-xl bg-[#FFC72C] hover:brightness-110 text-[#004724] text-xs font-black transition-all"
+                >
+                  Confirmar Saída
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* Rodapé Institucional do Quiosque */}
       <footer className="p-3 text-center border-t border-[#0d4a2f] bg-[#00361c] text-[11px] text-white/50 flex items-center justify-between px-6 flex-wrap gap-2">

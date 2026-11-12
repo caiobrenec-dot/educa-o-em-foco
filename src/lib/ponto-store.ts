@@ -1,6 +1,7 @@
 /**
  * ATHLETA PONTO — Sistema de Gestão de Jornada, Ponto Eletrônico e Escalas
- * Store reativo, com persistência local e auditoria imutável (Portaria 671 MTE).
+ * Versão 2.0: Banco de Horas, Auditoria de Fotos, 3 Níveis de Acesso e Base Demo Outubro/Novembro 2026.
+ * Lojas Oficiais: Athleta Shopping Catuaí e Athleta Shopping Boulevard.
  */
 
 export type RoleType =
@@ -10,14 +11,13 @@ export type RoleType =
   | "Vendedor(a) Líder"
   | "Vendedor(a) Esportivo"
   | "Consultor(a) de Vendas"
-  | "Operador(a) de Caixa"
-  | "Estoquista"
-  | "Auxiliar de Loja";
+  | "Operador(a) de Caixa";
 
 export type DayStatus =
   | "presente"
   | "ausente"
   | "atrasado"
+  | "saida_antecipada"
   | "folga"
   | "ferias"
   | "afastamento"
@@ -31,9 +31,9 @@ export type PunchType =
   | "saida";
 
 export interface Store {
-  id: string;
+  id: "store-catuai" | "store-boulevard";
   name: string;
-  code: string;
+  code: "catuai" | "boulevard";
   city: string;
   state: string;
   address: string;
@@ -46,8 +46,7 @@ export interface Store {
     allowedRadiusMeters: number;
   };
   openingHours: string;
-  activeEmployeesCount?: number;
-  createdAt: string;
+  kioskAccessCode: string; // Código exclusivo para liberar o tablet da unidade
 }
 
 export interface Employee {
@@ -58,25 +57,22 @@ export interface Employee {
   email: string;
   phone: string;
   role: RoleType;
-  storeId: string;
+  storeId: "store-catuai" | "store-boulevard";
   admissionDate: string;
-  contractHoursPerWeek: number; // e.g. 44
-  status: "ativo" | "ferias" | "afastado" | "desligado";
-  pin: string; // 4 a 6 dígitos para o Totem
+  contractHoursPerWeek: number; // 44h
+  status: "ativo" | "ferias" | "afastado";
+  pin: string; // 4 dígitos numéricos para o Totem
   defaultScheduleId: string;
-  avatar: string;
+  avatar: string; // Foto de referência cadastrada
   hourlyRate: number;
-  emergencyContact?: string;
-  rg?: string;
-  birthDate?: string;
 }
 
 export interface Punch {
   id: string;
   type: PunchType;
   timestamp: string; // ISO
-  time: string; // "09:58"
-  photoUrl: string; // base64 da câmera do quiosque/computador
+  time: string; // "14:08"
+  photoUrl: string; // Foto da câmera ao vivo no ato
   location: {
     latitude: number;
     longitude: number;
@@ -85,12 +81,13 @@ export interface Punch {
     inRange: boolean;
   };
   device: {
-    type: "Totem Quiosque Tablet" | "Computador da Loja" | "Dispositivo Mobile Autorizado";
+    type: "Totem Tablet Catuaí" | "Totem Tablet Boulevard" | "Computador da Loja";
     ip: string;
     userAgent: string;
   };
   nsr: number; // Número Sequencial de Registro
   hash: string; // Hash SHA-256 criptográfico
+  isDemoData?: boolean;
   isManualAdjustment?: boolean;
   originalTime?: string;
   adjustmentReason?: string;
@@ -101,37 +98,52 @@ export interface Punch {
 export interface DayTimeRecord {
   id: string;
   employeeId: string;
-  storeId: string;
+  storeId: "store-catuai" | "store-boulevard";
   date: string; // YYYY-MM-DD
-  dayOfWeek: number; // 0=Dom, 1=Seg, 2=Ter, 3=Qua, 4=Qui, 5=Sex, 6=Sab
+  dayOfWeek: number; // 0=Dom, 1=Seg, ..., 6=Sab
   punches: Punch[];
   scheduledEntry: string; // "10:00"
   scheduledExit: string; // "18:20"
-  scheduledBreak: string; // "13:00 - 14:00"
-  isDayOff: boolean; // Folga / DSR
+  scheduledBreak: string; // "13:30 - 14:30"
+  isDayOff: boolean;
   isVacationOrLeave: boolean;
-  leaveReason?: string;
   status: DayStatus;
   totalWorkedMinutes: number;
   expectedWorkedMinutes: number;
-  balanceMinutes: number; // positivo = extra, negativo = débito/atraso
+  balanceMinutes: number; // Positivo = crédito, Negativo = débito
   delayMinutes: number;
   extraMinutes: number;
+  earlyExitMinutes: number;
+  isDemoData?: boolean;
   notes?: string;
+}
+
+export interface BankOfHoursEntry {
+  id: string;
+  employeeId: string;
+  storeId: string;
+  date: string; // YYYY-MM-DD
+  type: "credito" | "debito";
+  minutes: number;
+  balanceAfterMinutes: number;
+  reason: string;
+  author: string;
+  isManualAdjustment?: boolean;
+  isDemoData?: boolean;
+  createdAt: string;
 }
 
 export interface ScheduleTemplate {
   id: string;
   name: string;
-  storeId?: string; // se específico para loja ou geral
   description: string;
-  workDays: number[]; // [1, 2, 3, 4, 5, 6] (seg a sab)
-  entryTime: string; // "10:00"
-  exitTime: string; // "18:20"
-  breakDurationMinutes: number; // 60
-  breakStartTime: string; // "14:00"
-  breakEndTime: string; // "15:00"
-  weeklyHours: number; // 44
+  workDays: number[];
+  entryTime: string;
+  exitTime: string;
+  breakDurationMinutes: number;
+  breakStartTime: string;
+  breakEndTime: string;
+  weeklyHours: number;
 }
 
 export interface DateScheduleOverride {
@@ -174,9 +186,11 @@ export interface AuditLog {
     | "escala_data_especifica"
     | "novo_funcionario"
     | "editar_funcionario"
-    | "nova_loja"
+    | "ajuste_banco_horas"
+    | "troca_codigo_quiosque"
     | "configuracao_alterada"
-    | "registro_ponto_quiosque";
+    | "registro_ponto_quiosque"
+    | "limpeza_base_demo";
   title: string;
   details: string;
   employeeId?: string;
@@ -188,19 +202,23 @@ export interface AuditLog {
 }
 
 export interface SystemSettings {
-  toleranceMinutes: number; // Padrão CLT: 5 a 10 min
-  minBreakMinutes: number; // 60 min para jornada > 6h
+  toleranceMinutes: number; // 5 minutos CLT
+  minBreakMinutes: number; // 60 min
   minIntershiftHours: number; // 11h
-  requireFacialPhoto: boolean; // true
-  requireLocationCheck: boolean; // true
+  requireFacialPhoto: boolean;
+  requireLocationCheck: boolean;
   autoLockKioskSeconds: number; // 4s
   companyName: string;
   companyCnpj: string;
   companyAddress: string;
+  kioskCodes: {
+    catuai: string;
+    boulevard: string;
+  };
 }
 
 // ==========================================
-// SEED DATA INICIAL REALISTA ATHLETA
+// 1. DUAS LOJAS OFICIAIS (CATUAÍ E BOULEVARD)
 // ==========================================
 
 export const INITIAL_STORES: Store[] = [
@@ -220,8 +238,7 @@ export const INITIAL_STORES: Store[] = [
       allowedRadiusMeters: 250,
     },
     openingHours: "Seg a Sáb: 10:00 às 22:00 | Dom: 14:00 às 20:00",
-    activeEmployeesCount: 5,
-    createdAt: "2024-01-15T08:00:00.000Z",
+    kioskAccessCode: "CAT-9824",
   },
   {
     id: "store-boulevard",
@@ -239,82 +256,16 @@ export const INITIAL_STORES: Store[] = [
       allowedRadiusMeters: 250,
     },
     openingHours: "Seg a Sáb: 10:00 às 22:00 | Dom: 14:00 às 20:00",
-    activeEmployeesCount: 4,
-    createdAt: "2024-03-01T08:00:00.000Z",
-  },
-  {
-    id: "store-ecommerce",
-    name: "Athleta Matriz & E-Commerce",
-    code: "matriz",
-    city: "Londrina",
-    state: "PR",
-    address: "Rua Mato Grosso, 890 - Centro",
-    cnpj: "12.345.678/0003-52",
-    phone: "(43) 3322-1935",
-    managerName: "Diretoria Geral",
-    gpsCoords: {
-      lat: -23.3105,
-      lng: -51.1628,
-      allowedRadiusMeters: 300,
-    },
-    openingHours: "Seg a Sex: 08:00 às 18:00",
-    activeEmployeesCount: 2,
-    createdAt: "2023-01-10T08:00:00.000Z",
+    kioskAccessCode: "BLV-4193",
   },
 ];
 
-export const INITIAL_SCHEDULES: ScheduleTemplate[] = [
-  {
-    id: "sch-shopping-abertura",
-    name: "Shopping Abertura (6x1)",
-    description: "Turno da manhã/tarde para lojas em shopping center",
-    workDays: [1, 2, 3, 4, 5, 6], // Seg a Sáb
-    entryTime: "09:45",
-    exitTime: "18:05",
-    breakDurationMinutes: 60,
-    breakStartTime: "13:30",
-    breakEndTime: "14:30",
-    weeklyHours: 44,
-  },
-  {
-    id: "sch-shopping-fechamento",
-    name: "Shopping Fechamento (6x1)",
-    description: "Turno da tarde/noite para lojas em shopping center",
-    workDays: [1, 2, 3, 4, 5, 6], // Seg a Sáb
-    entryTime: "13:40",
-    exitTime: "22:00",
-    breakDurationMinutes: 60,
-    breakStartTime: "17:00",
-    breakEndTime: "18:00",
-    weeklyHours: 44,
-  },
-  {
-    id: "sch-shopping-intermediario",
-    name: "Shopping Intermediário (6x1)",
-    description: "Turno central de pico para vendedores principais",
-    workDays: [1, 2, 3, 4, 5, 6],
-    entryTime: "11:30",
-    exitTime: "19:50",
-    breakDurationMinutes: 60,
-    breakStartTime: "15:00",
-    breakEndTime: "16:00",
-    weeklyHours: 44,
-  },
-  {
-    id: "sch-comercial-adm",
-    name: "Administrativo & Logística (5x2)",
-    description: "Segunda a sexta para estoque e gerência de operações",
-    workDays: [1, 2, 3, 4, 5],
-    entryTime: "08:00",
-    exitTime: "17:48",
-    breakDurationMinutes: 60,
-    breakStartTime: "12:00",
-    breakEndTime: "13:00",
-    weeklyHours: 44,
-  },
-];
+// ==========================================
+// 2. OITO FUNCIONÁRIOS REAIS (4 CATUAÍ / 4 BOULEVARD)
+// ==========================================
 
 export const INITIAL_EMPLOYEES: Employee[] = [
+  // --- Unidade Catuaí ---
   {
     id: "emp-1",
     name: "Carlos Eduardo Silva",
@@ -328,7 +279,7 @@ export const INITIAL_EMPLOYEES: Employee[] = [
     contractHoursPerWeek: 44,
     status: "ativo",
     pin: "1010",
-    defaultScheduleId: "sch-shopping-abertura",
+    defaultScheduleId: "sch-catuai-abertura",
     avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80",
     hourlyRate: 28.5,
   },
@@ -345,7 +296,7 @@ export const INITIAL_EMPLOYEES: Employee[] = [
     contractHoursPerWeek: 44,
     status: "ativo",
     pin: "2020",
-    defaultScheduleId: "sch-shopping-intermediario",
+    defaultScheduleId: "sch-catuai-intermediario",
     avatar: "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150&auto=format&fit=crop&q=80",
     hourlyRate: 19.8,
   },
@@ -362,7 +313,7 @@ export const INITIAL_EMPLOYEES: Employee[] = [
     contractHoursPerWeek: 44,
     status: "ativo",
     pin: "3030",
-    defaultScheduleId: "sch-shopping-fechamento",
+    defaultScheduleId: "sch-catuai-fechamento",
     avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80",
     hourlyRate: 17.5,
   },
@@ -379,10 +330,12 @@ export const INITIAL_EMPLOYEES: Employee[] = [
     contractHoursPerWeek: 44,
     status: "ativo",
     pin: "4040",
-    defaultScheduleId: "sch-shopping-abertura",
+    defaultScheduleId: "sch-catuai-abertura",
     avatar: "https://images.unsplash.com/photo-1580489944761-15a19d654956?w=150&auto=format&fit=crop&q=80",
     hourlyRate: 16.0,
   },
+
+  // --- Unidade Boulevard ---
   {
     id: "emp-5",
     name: "Rodrigo Albuquerque",
@@ -396,7 +349,7 @@ export const INITIAL_EMPLOYEES: Employee[] = [
     contractHoursPerWeek: 44,
     status: "ativo",
     pin: "5050",
-    defaultScheduleId: "sch-shopping-abertura",
+    defaultScheduleId: "sch-blv-abertura",
     avatar: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&auto=format&fit=crop&q=80",
     hourlyRate: 26.0,
   },
@@ -413,7 +366,7 @@ export const INITIAL_EMPLOYEES: Employee[] = [
     contractHoursPerWeek: 44,
     status: "ativo",
     pin: "6060",
-    defaultScheduleId: "sch-shopping-intermediario",
+    defaultScheduleId: "sch-blv-intermediario",
     avatar: "https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=150&auto=format&fit=crop&q=80",
     hourlyRate: 18.0,
   },
@@ -430,7 +383,7 @@ export const INITIAL_EMPLOYEES: Employee[] = [
     contractHoursPerWeek: 44,
     status: "ativo",
     pin: "7070",
-    defaultScheduleId: "sch-shopping-fechamento",
+    defaultScheduleId: "sch-blv-fechamento",
     avatar: "https://images.unsplash.com/photo-1522075469751-3a6694fb2f61?w=150&auto=format&fit=crop&q=80",
     hourlyRate: 17.5,
   },
@@ -447,26 +400,84 @@ export const INITIAL_EMPLOYEES: Employee[] = [
     contractHoursPerWeek: 44,
     status: "ativo",
     pin: "8080",
-    defaultScheduleId: "sch-shopping-abertura",
+    defaultScheduleId: "sch-blv-abertura",
     avatar: "https://images.unsplash.com/photo-1567532939604-b6b5b0db2604?w=150&auto=format&fit=crop&q=80",
     hourlyRate: 16.0,
   },
+];
+
+export const INITIAL_SCHEDULES: ScheduleTemplate[] = [
   {
-    id: "emp-9",
-    name: "Rafael Menezes Antunes",
-    matricula: "ATH-0005",
-    cpf: "198.742.665-20",
-    email: "rafael.antunes@athleta.com.br",
-    phone: "(43) 99890-1234",
-    role: "Estoquista",
-    storeId: "store-ecommerce",
-    admissionDate: "2023-01-20",
-    contractHoursPerWeek: 44,
-    status: "ativo",
-    pin: "9090",
-    defaultScheduleId: "sch-comercial-adm",
-    avatar: "https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=150&auto=format&fit=crop&q=80",
-    hourlyRate: 16.8,
+    id: "sch-catuai-abertura",
+    name: "Shopping Catuaí — Abertura (6x1)",
+    description: "Turno de abertura Catuaí: 09:45 às 18:05 (1h de intervalo)",
+    workDays: [1, 2, 3, 4, 5, 6],
+    entryTime: "09:45",
+    exitTime: "18:05",
+    breakDurationMinutes: 60,
+    breakStartTime: "13:30",
+    breakEndTime: "14:30",
+    weeklyHours: 44,
+  },
+  {
+    id: "sch-catuai-intermediario",
+    name: "Shopping Catuaí — Intermediário (6x1)",
+    description: "Turno de pico Catuaí: 11:30 às 19:50 (1h de intervalo)",
+    workDays: [1, 2, 3, 4, 5, 6],
+    entryTime: "11:30",
+    exitTime: "19:50",
+    breakDurationMinutes: 60,
+    breakStartTime: "15:00",
+    breakEndTime: "16:00",
+    weeklyHours: 44,
+  },
+  {
+    id: "sch-catuai-fechamento",
+    name: "Shopping Catuaí — Fechamento (6x1)",
+    description: "Turno de fechamento Catuaí: 13:40 às 22:00 (1h de intervalo)",
+    workDays: [1, 2, 3, 4, 5, 6],
+    entryTime: "13:40",
+    exitTime: "22:00",
+    breakDurationMinutes: 60,
+    breakStartTime: "17:00",
+    breakEndTime: "18:00",
+    weeklyHours: 44,
+  },
+  {
+    id: "sch-blv-abertura",
+    name: "Boulevard — Abertura (6x1)",
+    description: "Turno de abertura Boulevard: 09:45 às 18:05 (1h de intervalo)",
+    workDays: [1, 2, 3, 4, 5, 6],
+    entryTime: "09:45",
+    exitTime: "18:05",
+    breakDurationMinutes: 60,
+    breakStartTime: "13:30",
+    breakEndTime: "14:30",
+    weeklyHours: 44,
+  },
+  {
+    id: "sch-blv-intermediario",
+    name: "Boulevard — Intermediário (6x1)",
+    description: "Turno intermediário Boulevard: 11:30 às 19:50 (1h de intervalo)",
+    workDays: [1, 2, 3, 4, 5, 6],
+    entryTime: "11:30",
+    exitTime: "19:50",
+    breakDurationMinutes: 60,
+    breakStartTime: "15:00",
+    breakEndTime: "16:00",
+    weeklyHours: 44,
+  },
+  {
+    id: "sch-blv-fechamento",
+    name: "Boulevard — Fechamento (6x1)",
+    description: "Turno de fechamento Boulevard: 13:40 às 22:00 (1h de intervalo)",
+    workDays: [1, 2, 3, 4, 5, 6],
+    entryTime: "13:40",
+    exitTime: "22:00",
+    breakDurationMinutes: 60,
+    breakStartTime: "17:00",
+    breakEndTime: "18:00",
+    weeklyHours: 44,
   },
 ];
 
@@ -480,10 +491,14 @@ export const INITIAL_SETTINGS: SystemSettings = {
   companyName: "Athleta Confecções & Artigos Esportivos do Brasil Ltda",
   companyCnpj: "12.345.678/0001-90",
   companyAddress: "Rod. Celso Garcia Cid, 5600 - Londrina, PR",
+  kioskCodes: {
+    catuai: "CAT-9824",
+    boulevard: "BLV-4193",
+  },
 };
 
 // ==========================================
-// FUNÇÕES AUXILIARES DE DATAS E CÁLCULO
+// FUNÇÕES AUXILIARES DE CÁLCULO
 // ==========================================
 
 export function timeToMinutes(timeStr: string): number {
@@ -508,14 +523,18 @@ export function formatMinutesHuman(totalMinutes: number): string {
   const m = absMinutes % 60;
   const sign = isNegative ? "-" : "+";
   if (h === 0) return `${sign}${m}m`;
-  return `${sign}${h}h ${m}m`;
+  return `${sign}${h}h ${String(m).padStart(2, "0")}m`;
 }
 
-// Retorna as datas da semana atual (Segunda a Domingo)
-export function getWeekDates(referenceDate: Date = new Date()): { date: string; dayOfWeek: number; dayName: string; dayNumber: number }[] {
+// Retorna as datas da semana (Segunda a Domingo)
+export function getWeekDates(referenceDate: Date = new Date("2026-11-11T12:00:00")): {
+  date: string;
+  dayOfWeek: number;
+  dayName: string;
+  dayNumber: number;
+}[] {
   const curr = new Date(referenceDate);
-  // Segunda-feira como início
-  const day = curr.getDay(); // 0=Dom, 1=Seg, ... 6=Sab
+  const day = curr.getDay(); // 0=Dom, 1=Seg, ...
   const diff = curr.getDate() - day + (day === 0 ? -6 : 1);
   const monday = new Date(curr.setDate(diff));
 
@@ -526,7 +545,7 @@ export function getWeekDates(referenceDate: Date = new Date()): { date: string; 
     const nextDate = new Date(monday);
     nextDate.setDate(monday.getDate() + i);
     const dateStr = nextDate.toISOString().split("T")[0];
-    const jsDayOfWeek = nextDate.getDay(); // 0 a 6
+    const jsDayOfWeek = nextDate.getDay();
     week.push({
       date: dateStr,
       dayOfWeek: jsDayOfWeek,
@@ -538,63 +557,99 @@ export function getWeekDates(referenceDate: Date = new Date()): { date: string; 
   return week;
 }
 
-// Gera foto facial de fallback padrão em SVG DataURL estilizada com crachá
-export function generateFaceAvatar(name: string, role: string, initials: string, time: string): string {
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="320" height="320" viewBox="0 0 320 320">
+// Gera foto facial de demonstração estilizada com selo DEMO e dados do registro
+export function generateDemoSelfie(name: string, role: string, initials: string, time: string, storeCode: string): string {
+  const storeLabel = storeCode === "store-catuai" ? "CATUAÍ" : "BOULEVARD";
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="360" height="360" viewBox="0 0 360 360">
     <defs>
-      <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="100%">
         <stop offset="0%" stop-color="#005C30" />
-        <stop offset="100%" stop-color="#00361C" />
+        <stop offset="100%" stop-color="#002914" />
       </linearGradient>
     </defs>
-    <rect width="320" height="320" fill="url(#bg)" rx="16" />
-    <circle cx="160" cy="115" r="50" fill="#FFC72C" fill-opacity="0.9" />
-    <path d="M90 240 C90 190, 230 190, 230 240 Z" fill="#FFC72C" fill-opacity="0.9" />
-    <text x="160" y="125" font-family="Arial, sans-serif" font-size="28" font-weight="bold" fill="#00361C" text-anchor="middle">${initials}</text>
-    <rect x="20" y="260" width="280" height="42" rx="8" fill="#000000" fill-opacity="0.6" />
-    <text x="160" y="278" font-family="Arial, sans-serif" font-size="12" font-weight="bold" fill="#FFFFFF" text-anchor="middle">${name.split(' ').slice(0, 2).join(' ')}</text>
-    <text x="160" y="294" font-family="Arial, sans-serif" font-size="10" fill="#FFC72C" text-anchor="middle">FACIAL AO VIVO: ${time}</text>
-    <circle cx="285" cy="35" r="8" fill="#10B981" />
-    <text x="270" y="38" font-family="Arial, sans-serif" font-size="10" font-weight="bold" fill="#10B981" text-anchor="end">AO VIVO</text>
+    <rect width="360" height="360" fill="url(#g)" rx="20" />
+    <circle cx="180" cy="135" r="55" fill="#FFC72C" fill-opacity="0.9" />
+    <path d="M100 270 C100 215, 260 215, 260 270 Z" fill="#FFC72C" fill-opacity="0.9" />
+    <text x="180" y="145" font-family="'Plus Jakarta Sans', Arial, sans-serif" font-size="32" font-weight="900" fill="#00361C" text-anchor="middle">${initials}</text>
+    
+    <rect x="25" y="280" width="310" height="60" rx="12" fill="#000000" fill-opacity="0.7" />
+    <text x="180" y="303" font-family="Arial, sans-serif" font-size="13" font-weight="bold" fill="#FFFFFF" text-anchor="middle">${name.split(' ').slice(0, 2).join(' ')}</text>
+    <text x="180" y="322" font-family="monospace" font-size="11" font-weight="bold" fill="#FFC72C" text-anchor="middle">${storeLabel} • ${time} • GPS OK</text>
+    
+    <rect x="25" y="20" width="160" height="26" rx="6" fill="#FFC72C" />
+    <text x="105" y="37" font-family="Arial, sans-serif" font-size="10" font-weight="900" fill="#004724" text-anchor="middle">DEMO • CAPTURA AO VIVO</text>
+    <circle cx="325" cy="33" r="8" fill="#10B981" />
   </svg>`;
   return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
 }
 
-// Criação de registros de demonstração ricos
-export function generateSeedDayRecords(): DayTimeRecord[] {
-  const week = getWeekDates(new Date());
+// ==========================================
+// 3. BASE DE DEMONSTRAÇÃO REALISTA:
+// OUTUBRO/2026 COMPLETO E 01 A 11/NOVEMBRO/2026
+// ==========================================
+
+export function generateFullHistoricalDemoData(): {
+  records: DayTimeRecord[];
+  bankEntries: BankOfHoursEntry[];
+} {
   const records: DayTimeRecord[] = [];
-  let nsrCounter = 100450;
+  const bankEntries: BankOfHoursEntry[] = [];
+  let nsrCounter = 200100;
+
+  // Lista de datas: Outubro 2026 (01 a 31) + Novembro 2026 (01 a 11)
+  const allDates: string[] = [];
+  // Outubro
+  for (let d = 1; d <= 31; d++) {
+    allDates.push(`2026-10-${String(d).padStart(2, "0")}`);
+  }
+  // Novembro
+  for (let d = 1; d <= 11; d++) {
+    allDates.push(`2026-11-${String(d).padStart(2, "0")}`);
+  }
 
   INITIAL_EMPLOYEES.forEach((emp) => {
-    week.forEach((wDay, idx) => {
-      const isSunday = wDay.dayOfWeek === 0;
-      const isDayOff = isSunday || (emp.id === "emp-3" && wDay.dayOfWeek === 2) || (emp.id === "emp-6" && wDay.dayOfWeek === 3);
+    let runningBalance = 0;
 
-      const recordId = `rec-${emp.id}-${wDay.date}`;
-      const initials = emp.name.split(" ").map((n) => n[0]).join("").slice(0, 2);
+    allDates.forEach((dateStr) => {
+      const dateObj = new Date(`${dateStr}T12:00:00`);
+      const dayOfWeek = dateObj.getDay(); // 0=Dom, 1=Seg...
+      const isSunday = dayOfWeek === 0;
 
-      let scheduledEntry = "10:00";
-      let scheduledExit = "18:20";
-      let scheduledBreak = "13:30 - 14:30";
+      // Escala de Folga (DSR): Domingo ou folga fixa no meio da semana para escala 6x1
+      const isEmployeeOffDay =
+        isSunday ||
+        (emp.id === "emp-3" && dayOfWeek === 2) || // Lucas folga terça
+        (emp.id === "emp-6" && dayOfWeek === 3) || // Camila folga quarta
+        (emp.id === "emp-7" && dayOfWeek === 4);   // Thiago folga quinta
+
+      let scheduledEntry = "09:45";
+      let scheduledExit = "18:05";
+      let breakStart = "13:30";
+      let breakEnd = "14:30";
 
       if (emp.role.includes("Fechamento") || emp.id === "emp-3" || emp.id === "emp-7") {
         scheduledEntry = "13:40";
         scheduledExit = "22:00";
-        scheduledBreak = "17:00 - 18:00";
+        breakStart = "17:00";
+        breakEnd = "18:00";
       } else if (emp.role.includes("Líder") || emp.role.includes("Consultor") || emp.id === "emp-2" || emp.id === "emp-6") {
         scheduledEntry = "11:30";
         scheduledExit = "19:50";
-        scheduledBreak = "15:00 - 16:00";
+        breakStart = "15:00";
+        breakEnd = "16:00";
       }
 
-      if (isDayOff) {
+      const scheduledBreak = `${breakStart} - ${breakEnd}`;
+      const initials = emp.name.split(" ").map((n) => n[0]).join("").slice(0, 2);
+
+      // 1. DIA DE FOLGA
+      if (isEmployeeOffDay) {
         records.push({
-          id: recordId,
+          id: `rec-${emp.id}-${dateStr}`,
           employeeId: emp.id,
           storeId: emp.storeId,
-          date: wDay.date,
-          dayOfWeek: wDay.dayOfWeek,
+          date: dateStr,
+          dayOfWeek,
           punches: [],
           scheduledEntry: "-",
           scheduledExit: "-",
@@ -607,141 +662,309 @@ export function generateSeedDayRecords(): DayTimeRecord[] {
           balanceMinutes: 0,
           delayMinutes: 0,
           extraMinutes: 0,
+          earlyExitMinutes: 0,
+          isDemoData: true,
+          notes: "DSR / Folga semanal conforme escala",
         });
         return;
       }
 
-      // Variações realistas nos dias de trabalho:
-      // Dia 0 (Segunda): Presente no horário certinho
-      // Dia 1 (Terça): Atrasado 18 min
-      // Dia 2 (Quarta): Hora Extra (+45 min)
-      // Dia 3 (Quinta): Registro incompleto (esqueceu saída) para Beatriz emp-4
-      // Dia 4 (Sexta): Presente
-      // Dia 5 (Sábado): Presente
-      const dayIndex = idx;
-      let status: DayStatus = "presente";
-      let punches: Punch[] = [];
-      let delayMinutes = 0;
-      let extraMinutes = 0;
+      // 2. SIMULAÇÃO VARIADA REALISTA
+      const dayNum = dateObj.getDate();
+      const monthNum = dateObj.getMonth() + 1; // 10 ou 11
+      const isNovember = monthNum === 11;
+      const isToday = isNovember && dayNum === 11;
 
+      let status: DayStatus = "presente";
       let actualEntry = scheduledEntry;
       let actualExit = scheduledExit;
-      const [breakStart, breakEnd] = scheduledBreak.split(" - ");
+      let delayMinutes = 0;
+      let extraMinutes = 0;
+      let earlyExitMinutes = 0;
 
-      if (dayIndex === 1 && (emp.id === "emp-2" || emp.id === "emp-7")) {
-        // Atrasado
-        status = "atrasado";
-        const entryM = timeToMinutes(scheduledEntry) + 18;
-        actualEntry = minutesToTime(entryM);
-        delayMinutes = 18;
-      } else if (dayIndex === 2 && (emp.id === "emp-1" || emp.id === "emp-5")) {
-        // Hora extra
-        status = "hora_extra";
-        const exitM = timeToMinutes(scheduledExit) + 50;
-        actualExit = minutesToTime(exitM);
-        extraMinutes = 50;
-      } else if (dayIndex === 3 && emp.id === "emp-4") {
-        // Incompleto (sem saída)
-        status = "incompleto";
-      } else if (dayIndex === 4 && emp.id === "emp-8") {
-        // Falta / Ausente
-        status = "ausente";
+      // Cenário A: Falta Injustificada
+      const isAbsent = (dayNum === 14 && emp.id === "emp-4") || (dayNum === 22 && emp.id === "emp-8") || (isNovember && dayNum === 4 && emp.id === "emp-7");
+      if (isAbsent && !isToday) {
+        records.push({
+          id: `rec-${emp.id}-${dateStr}`,
+          employeeId: emp.id,
+          storeId: emp.storeId,
+          date: dateStr,
+          dayOfWeek,
+          punches: [],
+          scheduledEntry,
+          scheduledExit,
+          scheduledBreak,
+          isDayOff: false,
+          isVacationOrLeave: false,
+          status: "ausente",
+          totalWorkedMinutes: 0,
+          expectedWorkedMinutes: 440,
+          balanceMinutes: -440,
+          delayMinutes: 0,
+          extraMinutes: 0,
+          earlyExitMinutes: 0,
+          isDemoData: true,
+          notes: "Ausência não justificada",
+        });
+
+        runningBalance -= 440;
+        bankEntries.push({
+          id: `bkh-${emp.id}-${dateStr}`,
+          employeeId: emp.id,
+          storeId: emp.storeId,
+          date: dateStr,
+          type: "debito",
+          minutes: 440,
+          balanceAfterMinutes: runningBalance,
+          reason: `Falta injustificada dia ${dateStr.split('-').reverse().join('/')}`,
+          author: "Sistema Automático",
+          isDemoData: true,
+          createdAt: `${dateStr}T23:59:00Z`,
+        });
+        return;
       }
 
-      if (status !== "ausente") {
+      // Cenário B: Atraso na entrada (15 a 25 min)
+      const hasDelay = (dayNum % 7 === 1 && (emp.id === "emp-2" || emp.id === "emp-6")) || (isNovember && dayNum === 6 && emp.id === "emp-3");
+      if (hasDelay) {
+        delayMinutes = 20;
+        const entryM = timeToMinutes(scheduledEntry) + delayMinutes;
+        actualEntry = minutesToTime(entryM);
+        status = "atrasado";
+      }
+
+      // Cenário C: Horas Extras (+35 a +55 min)
+      const hasExtra = (dayNum % 5 === 0 && (emp.id === "emp-1" || emp.id === "emp-5")) || (isNovember && dayNum === 7 && emp.id === "emp-2");
+      if (hasExtra) {
+        extraMinutes = 45;
+        const exitM = timeToMinutes(scheduledExit) + extraMinutes;
+        actualExit = minutesToTime(exitM);
+        status = "hora_extra";
+      }
+
+      // Cenário D: Saída Antecipada (30 min)
+      const hasEarlyExit = (dayNum === 19 && emp.id === "emp-3") || (isNovember && dayNum === 9 && emp.id === "emp-8");
+      if (hasEarlyExit) {
+        earlyExitMinutes = 30;
+        const exitM = timeToMinutes(scheduledExit) - earlyExitMinutes;
+        actualExit = minutesToTime(exitM);
+        status = "saida_antecipada";
+      }
+
+      // Cenário E: Incompleto (esqueceu a batida de saída)
+      const isIncomplete = (dayNum === 27 && emp.id === "emp-4") || (isNovember && dayNum === 9 && emp.id === "emp-4");
+
+      // Cenário Especial: HOJE (11/11/2026)
+      // Simula expediente em andamento (já bateu entrada, alguns no almoço, saída ainda PENDENTE)
+      const punches: Punch[] = [];
+
+      if (isToday) {
+        // Hoje: Entrada registrada
         nsrCounter++;
         punches.push({
           id: `p-${nsrCounter}`,
           type: "entrada",
-          timestamp: `${wDay.date}T${actualEntry}:00.000Z`,
+          timestamp: `${dateStr}T${actualEntry}:00.000Z`,
           time: actualEntry,
-          photoUrl: generateFaceAvatar(emp.name, emp.role, initials, actualEntry),
+          photoUrl: generateDemoSelfie(emp.name, emp.role, initials, actualEntry, emp.storeId),
           location: {
-            latitude: -23.3421 + (Math.random() - 0.5) * 0.0005,
-            longitude: -51.1872 + (Math.random() - 0.5) * 0.0005,
-            accuracy: 8,
-            address: "Shopping Catuaí - Loja Athleta, Londrina - PR",
-            inRange: true,
-          },
-          device: {
-            type: "Totem Quiosque Tablet",
-            ip: "192.168.1.105",
-            userAgent: "Mozilla/5.0 (iPad; CPU OS 17_4) AthletaKiosk/2.4",
-          },
-          nsr: nsrCounter,
-          hash: `sha256-athleta-${nsrCounter}-8f7a9e`,
-        });
-
-        nsrCounter++;
-        punches.push({
-          id: `p-${nsrCounter}`,
-          type: "intervalo_saida",
-          timestamp: `${wDay.date}T${breakStart}:00.000Z`,
-          time: breakStart,
-          photoUrl: generateFaceAvatar(emp.name, emp.role, initials, breakStart),
-          location: {
-            latitude: -23.3421,
-            longitude: -51.1872,
+            latitude: emp.storeId === "store-catuai" ? -23.3421 : -23.3089,
+            longitude: emp.storeId === "store-catuai" ? -51.1872 : -51.1448,
             accuracy: 6,
-            address: "Shopping Catuaí - Loja Athleta, Londrina - PR",
+            address: emp.storeId === "store-catuai" ? "Shopping Catuaí - Loja Athleta" : "Shopping Boulevard - Loja Athleta",
             inRange: true,
           },
           device: {
-            type: "Totem Quiosque Tablet",
-            ip: "192.168.1.105",
-            userAgent: "Mozilla/5.0 (iPad; CPU OS 17_4) AthletaKiosk/2.4",
+            type: emp.storeId === "store-catuai" ? "Totem Tablet Catuaí" : "Totem Tablet Boulevard",
+            ip: "192.168.1.50",
+            userAgent: "AthletaKiosk/2.0 (Tablet Fixo)",
           },
           nsr: nsrCounter,
-          hash: `sha256-athleta-${nsrCounter}-3b4c1d`,
+          hash: `sha256-demo-${nsrCounter}`,
+          isDemoData: true,
         });
 
-        nsrCounter++;
-        punches.push({
-          id: `p-${nsrCounter}`,
-          type: "intervalo_retorno",
-          timestamp: `${wDay.date}T${breakEnd}:00.000Z`,
-          time: breakEnd,
-          photoUrl: generateFaceAvatar(emp.name, emp.role, initials, breakEnd),
-          location: {
-            latitude: -23.3421,
-            longitude: -51.1872,
-            accuracy: 7,
-            address: "Shopping Catuaí - Loja Athleta, Londrina - PR",
-            inRange: true,
-          },
-          device: {
-            type: "Totem Quiosque Tablet",
-            ip: "192.168.1.105",
-            userAgent: "Mozilla/5.0 (iPad; CPU OS 17_4) AthletaKiosk/2.4",
-          },
-          nsr: nsrCounter,
-          hash: `sha256-athleta-${nsrCounter}-5f8e2a`,
-        });
-
-        if (status !== "incompleto") {
+        // Quem entrou cedo já saiu e voltou do almoço
+        if (emp.role.includes("Abertura") || emp.id === "emp-1" || emp.id === "emp-5" || emp.id === "emp-4") {
           nsrCounter++;
           punches.push({
             id: `p-${nsrCounter}`,
-            type: "saida",
-            timestamp: `${wDay.date}T${actualExit}:00.000Z`,
-            time: actualExit,
-            photoUrl: generateFaceAvatar(emp.name, emp.role, initials, actualExit),
+            type: "intervalo_saida",
+            timestamp: `${dateStr}T${breakStart}:00.000Z`,
+            time: breakStart,
+            photoUrl: generateDemoSelfie(emp.name, emp.role, initials, breakStart, emp.storeId),
             location: {
-              latitude: -23.3421,
-              longitude: -51.1872,
-              accuracy: 9,
-              address: "Shopping Catuaí - Loja Athleta, Londrina - PR",
+              latitude: emp.storeId === "store-catuai" ? -23.3421 : -23.3089,
+              longitude: emp.storeId === "store-catuai" ? -51.1872 : -51.1448,
+              accuracy: 6,
+              address: emp.storeId === "store-catuai" ? "Shopping Catuaí - Loja Athleta" : "Shopping Boulevard - Loja Athleta",
               inRange: true,
             },
             device: {
-              type: "Totem Quiosque Tablet",
-              ip: "192.168.1.105",
-              userAgent: "Mozilla/5.0 (iPad; CPU OS 17_4) AthletaKiosk/2.4",
+              type: emp.storeId === "store-catuai" ? "Totem Tablet Catuaí" : "Totem Tablet Boulevard",
+              ip: "192.168.1.50",
+              userAgent: "AthletaKiosk/2.0 (Tablet Fixo)",
             },
             nsr: nsrCounter,
-            hash: `sha256-athleta-${nsrCounter}-9a1b2c`,
+            hash: `sha256-demo-${nsrCounter}`,
+            isDemoData: true,
+          });
+
+          nsrCounter++;
+          punches.push({
+            id: `p-${nsrCounter}`,
+            type: "intervalo_retorno",
+            timestamp: `${dateStr}T${breakEnd}:00.000Z`,
+            time: breakEnd,
+            photoUrl: generateDemoSelfie(emp.name, emp.role, initials, breakEnd, emp.storeId),
+            location: {
+              latitude: emp.storeId === "store-catuai" ? -23.3421 : -23.3089,
+              longitude: emp.storeId === "store-catuai" ? -51.1872 : -51.1448,
+              accuracy: 7,
+              address: emp.storeId === "store-catuai" ? "Shopping Catuaí - Loja Athleta" : "Shopping Boulevard - Loja Athleta",
+              inRange: true,
+            },
+            device: {
+              type: emp.storeId === "store-catuai" ? "Totem Tablet Catuaí" : "Totem Tablet Boulevard",
+              ip: "192.168.1.50",
+              userAgent: "AthletaKiosk/2.0 (Tablet Fixo)",
+            },
+            nsr: nsrCounter,
+            hash: `sha256-demo-${nsrCounter}`,
+            isDemoData: true,
           });
         }
+
+        // Saída de hoje: AINDA NÃO OCORREU (PENDENTE)! NUNCA criar saída antecipada no dia em curso!
+        records.push({
+          id: `rec-${emp.id}-${dateStr}`,
+          employeeId: emp.id,
+          storeId: emp.storeId,
+          date: dateStr,
+          dayOfWeek,
+          punches,
+          scheduledEntry,
+          scheduledExit,
+          scheduledBreak,
+          isDayOff: false,
+          isVacationOrLeave: false,
+          status: punches.length === 2 ? "incompleto" : "presente",
+          totalWorkedMinutes: 240, // 4h feitas até o momento
+          expectedWorkedMinutes: 440,
+          balanceMinutes: -200, // em andamento
+          delayMinutes,
+          extraMinutes: 0,
+          earlyExitMinutes: 0,
+          isDemoData: true,
+          notes: "Expediente em andamento • Saída pendente",
+        });
+        return;
+      }
+
+      // DIAS ANTERIORES CONCLUÍDOS
+      // Batida 1: Entrada
+      nsrCounter++;
+      punches.push({
+        id: `p-${nsrCounter}`,
+        type: "entrada",
+        timestamp: `${dateStr}T${actualEntry}:00.000Z`,
+        time: actualEntry,
+        photoUrl: generateDemoSelfie(emp.name, emp.role, initials, actualEntry, emp.storeId),
+        location: {
+          latitude: emp.storeId === "store-catuai" ? -23.3421 : -23.3089,
+          longitude: emp.storeId === "store-catuai" ? -51.1872 : -51.1448,
+          accuracy: 5,
+          address: emp.storeId === "store-catuai" ? "Shopping Catuaí - Loja Athleta" : "Shopping Boulevard - Loja Athleta",
+          inRange: true,
+        },
+        device: {
+          type: emp.storeId === "store-catuai" ? "Totem Tablet Catuaí" : "Totem Tablet Boulevard",
+          ip: "192.168.1.50",
+          userAgent: "AthletaKiosk/2.0 (Tablet Fixo)",
+        },
+        nsr: nsrCounter,
+        hash: `sha256-demo-${nsrCounter}`,
+        isDemoData: true,
+      });
+
+      // Batida 2: Saída Intervalo
+      nsrCounter++;
+      punches.push({
+        id: `p-${nsrCounter}`,
+        type: "intervalo_saida",
+        timestamp: `${dateStr}T${breakStart}:00.000Z`,
+        time: breakStart,
+        photoUrl: generateDemoSelfie(emp.name, emp.role, initials, breakStart, emp.storeId),
+        location: {
+          latitude: emp.storeId === "store-catuai" ? -23.3421 : -23.3089,
+          longitude: emp.storeId === "store-catuai" ? -51.1872 : -51.1448,
+          accuracy: 5,
+          address: emp.storeId === "store-catuai" ? "Shopping Catuaí - Loja Athleta" : "Shopping Boulevard - Loja Athleta",
+          inRange: true,
+        },
+        device: {
+          type: emp.storeId === "store-catuai" ? "Totem Tablet Catuaí" : "Totem Tablet Boulevard",
+          ip: "192.168.1.50",
+          userAgent: "AthletaKiosk/2.0 (Tablet Fixo)",
+        },
+        nsr: nsrCounter,
+        hash: `sha256-demo-${nsrCounter}`,
+        isDemoData: true,
+      });
+
+      // Batida 3: Retorno Intervalo
+      nsrCounter++;
+      punches.push({
+        id: `p-${nsrCounter}`,
+        type: "intervalo_retorno",
+        timestamp: `${dateStr}T${breakEnd}:00.000Z`,
+        time: breakEnd,
+        photoUrl: generateDemoSelfie(emp.name, emp.role, initials, breakEnd, emp.storeId),
+        location: {
+          latitude: emp.storeId === "store-catuai" ? -23.3421 : -23.3089,
+          longitude: emp.storeId === "store-catuai" ? -51.1872 : -51.1448,
+          accuracy: 5,
+          address: emp.storeId === "store-catuai" ? "Shopping Catuaí - Loja Athleta" : "Shopping Boulevard - Loja Athleta",
+          inRange: true,
+        },
+        device: {
+          type: emp.storeId === "store-catuai" ? "Totem Tablet Catuaí" : "Totem Tablet Boulevard",
+          ip: "192.168.1.50",
+          userAgent: "AthletaKiosk/2.0 (Tablet Fixo)",
+        },
+        nsr: nsrCounter,
+        hash: `sha256-demo-${nsrCounter}`,
+        isDemoData: true,
+      });
+
+      // Batida 4: Saída (se não for incompleto)
+      if (!isIncomplete) {
+        nsrCounter++;
+        punches.push({
+          id: `p-${nsrCounter}`,
+          type: "saida",
+          timestamp: `${dateStr}T${actualExit}:00.000Z`,
+          time: actualExit,
+          photoUrl: generateDemoSelfie(emp.name, emp.role, initials, actualExit, emp.storeId),
+          location: {
+            latitude: emp.storeId === "store-catuai" ? -23.3421 : -23.3089,
+            longitude: emp.storeId === "store-catuai" ? -51.1872 : -51.1448,
+            accuracy: 6,
+            address: emp.storeId === "store-catuai" ? "Shopping Catuaí - Loja Athleta" : "Shopping Boulevard - Loja Athleta",
+            inRange: true,
+          },
+          device: {
+            type: emp.storeId === "store-catuai" ? "Totem Tablet Catuaí" : "Totem Tablet Boulevard",
+            ip: "192.168.1.50",
+            userAgent: "AthletaKiosk/2.0 (Tablet Fixo)",
+          },
+          nsr: nsrCounter,
+          hash: `sha256-demo-${nsrCounter}`,
+          isDemoData: true,
+        });
+      } else {
+        status = "incompleto";
       }
 
       const expectedWorkedMinutes = timeToMinutes(scheduledExit) - timeToMinutes(scheduledEntry) - 60;
@@ -751,18 +974,40 @@ export function generateSeedDayRecords(): DayTimeRecord[] {
         const morning = timeToMinutes(punches[1].time) - timeToMinutes(punches[0].time);
         const afternoon = timeToMinutes(punches[3].time) - timeToMinutes(punches[2].time);
         totalWorkedMinutes = Math.max(0, morning + afternoon);
-      } else if (punches.length >= 2) {
+      } else if (punches.length === 3) {
         totalWorkedMinutes = timeToMinutes(punches[1].time) - timeToMinutes(punches[0].time);
       }
 
       const balanceMinutes = totalWorkedMinutes - expectedWorkedMinutes;
 
+      // Alimenta Banco de Horas
+      if (balanceMinutes !== 0 && !isIncomplete) {
+        runningBalance += balanceMinutes;
+        bankEntries.push({
+          id: `bkh-${emp.id}-${dateStr}`,
+          employeeId: emp.id,
+          storeId: emp.storeId,
+          date: dateStr,
+          type: balanceMinutes > 0 ? "credito" : "debito",
+          minutes: Math.abs(balanceMinutes),
+          balanceAfterMinutes: runningBalance,
+          reason: balanceMinutes > 0
+            ? `Horas extras realizadas (+${balanceMinutes}m)`
+            : delayMinutes > 0
+            ? `Atraso na entrada (-${delayMinutes}m)`
+            : `Saída antecipada (-${earlyExitMinutes}m)`,
+          author: "Sistema Automático",
+          isDemoData: true,
+          createdAt: `${dateStr}T22:30:00Z`,
+        });
+      }
+
       records.push({
-        id: recordId,
+        id: `rec-${emp.id}-${dateStr}`,
         employeeId: emp.id,
         storeId: emp.storeId,
-        date: wDay.date,
-        dayOfWeek: wDay.dayOfWeek,
+        date: dateStr,
+        dayOfWeek,
         punches,
         scheduledEntry,
         scheduledExit,
@@ -775,90 +1020,29 @@ export function generateSeedDayRecords(): DayTimeRecord[] {
         balanceMinutes,
         delayMinutes,
         extraMinutes,
+        earlyExitMinutes,
+        isDemoData: true,
       });
     });
   });
 
-  return records;
+  return { records, bankEntries };
 }
 
-export const INITIAL_AUDIT_LOGS: AuditLog[] = [
-  {
-    id: "aud-01",
-    timestamp: new Date(Date.now() - 3600000 * 24).toISOString(),
-    actionType: "alteracao_escala",
-    title: "Atualização de escala de sábado",
-    details: "Turno da funcionária Mariana Santos Rocha alterado de Abertura para Intermediário no Shopping Catuaí.",
-    employeeId: "emp-2",
-    employeeName: "Mariana Santos Rocha",
-    storeId: "store-catuai",
-    authorName: "Carlos Eduardo Silva (Gerente)",
-    previousValue: "10:00 - 18:20",
-    newValue: "11:30 - 19:50",
-  },
-  {
-    id: "aud-02",
-    timestamp: new Date(Date.now() - 3600000 * 48).toISOString(),
-    actionType: "aprovacao_solicitacao",
-    title: "Aprovação de ajuste de saída",
-    details: "Solicitação #CORR-4012 aprovada. Horário original não registrado por instabilidade na rede do shopping.",
-    employeeId: "emp-4",
-    employeeName: "Beatriz Fernandes Lima",
-    storeId: "store-catuai",
-    authorName: "Carlos Eduardo Silva (Gerente)",
-    previousValue: "Sem registro de saída",
-    newValue: "18:20 (Aprovado com justificativa)",
-  },
-  {
-    id: "aud-03",
-    timestamp: new Date(Date.now() - 3600000 * 72).toISOString(),
-    actionType: "configuracao_alterada",
-    title: "Parametrização de Geofencing e Câmera",
-    details: "Ativada obrigatoriedade de captura de foto ao vivo no Totem Quiosque e raio de 250m GPS para as lojas Athleta.",
-    authorName: "Proprietário / Admin Geral",
-    previousValue: "Câmera Opcional",
-    newValue: "Câmera Obrigatória + Foto Ao Vivo Sem Upload",
-  },
-];
-
-export const INITIAL_CORRECTIONS: CorrectionRequest[] = [
-  {
-    id: "corr-1",
-    employeeId: "emp-4",
-    storeId: "store-catuai",
-    date: new Date().toISOString().split("T")[0],
-    punchType: "saida",
-    requestedTime: "18:20",
-    reason: "Atendi cliente no fechamento da venda e o tablet da loja estava reiniciando atualização.",
-    status: "pendente",
-    requestedAt: new Date(Date.now() - 3600000 * 3).toISOString(),
-  },
-  {
-    id: "corr-2",
-    employeeId: "emp-7",
-    storeId: "store-boulevard",
-    date: new Date(Date.now() - 3600000 * 24).toISOString().split("T")[0],
-    punchType: "intervalo_retorno",
-    requestedTime: "18:00",
-    reason: "Retornei pontualmente mas houve fila momentânea no tablet da loja Boulevard.",
-    status: "pendente",
-    requestedAt: new Date(Date.now() - 3600000 * 20).toISOString(),
-  },
-];
-
 // ==========================================
-// STORE STORAGE ENGINE
+// 4. STORAGE & ENGINE
 // ==========================================
 
 const STORAGE_KEYS = {
-  STORES: "athleta_ponto_stores_v1",
-  EMPLOYEES: "athleta_ponto_employees_v1",
-  SCHEDULES: "athleta_ponto_schedules_v1",
-  DAY_RECORDS: "athleta_ponto_records_v1",
-  AUDIT_LOGS: "athleta_ponto_audit_v1",
-  CORRECTIONS: "athleta_ponto_corrections_v1",
-  SETTINGS: "athleta_ponto_settings_v1",
-  SCHEDULE_OVERRIDES: "athleta_ponto_overrides_v1",
+  STORES: "athleta_ponto_stores_v2",
+  EMPLOYEES: "athleta_ponto_employees_v2",
+  SCHEDULES: "athleta_ponto_schedules_v2",
+  DAY_RECORDS: "athleta_ponto_records_v2",
+  AUDIT_LOGS: "athleta_ponto_audit_v2",
+  CORRECTIONS: "athleta_ponto_corrections_v2",
+  SETTINGS: "athleta_ponto_settings_v2",
+  SCHEDULE_OVERRIDES: "athleta_ponto_overrides_v2",
+  BANK_OF_HOURS: "athleta_ponto_bank_v2",
 };
 
 export class PontoStore {
@@ -888,7 +1072,16 @@ export class PontoStore {
         localStorage.setItem(STORAGE_KEYS.STORES, JSON.stringify(INITIAL_STORES));
         return INITIAL_STORES;
       }
-      return JSON.parse(data);
+      const parsed: Store[] = JSON.parse(data);
+      // Garante somente Catuaí e Boulevard
+      const onlyOfficial = parsed.filter(
+        (s) => s.id === "store-catuai" || s.id === "store-boulevard"
+      );
+      if (onlyOfficial.length < 2) {
+        localStorage.setItem(STORAGE_KEYS.STORES, JSON.stringify(INITIAL_STORES));
+        return INITIAL_STORES;
+      }
+      return onlyOfficial;
     } catch {
       return INITIAL_STORES;
     }
@@ -900,26 +1093,59 @@ export class PontoStore {
     this.notify();
   }
 
-  public static addStore(newStore: Omit<Store, "id" | "createdAt">): Store {
+  // Validação do código exclusivo de quiosque
+  public static validateKioskCode(code: string): {
+    valid: boolean;
+    store?: Store;
+    errorMessage?: string;
+  } {
     const stores = this.getStores();
-    const store: Store = {
-      ...newStore,
-      id: `store-${Date.now()}`,
-      createdAt: new Date().toISOString(),
+    const cleanCode = code.trim().toUpperCase();
+    const store = stores.find((s) => s.kioskAccessCode.toUpperCase() === cleanCode);
+
+    if (store) {
+      return { valid: true, store };
+    }
+    return {
+      valid: false,
+      errorMessage: "Código de acesso da unidade inválido. Consulte o ADM TOTAL.",
     };
-    stores.push(store);
+  }
+
+  // Troca/revogação de código de quiosque pelo ADM
+  public static regenerateKioskCode(storeId: "store-catuai" | "store-boulevard"): string {
+    const stores = this.getStores();
+    const store = stores.find((s) => s.id === storeId);
+    if (!store) return "";
+
+    const prefix = storeId === "store-catuai" ? "CAT" : "BLV";
+    const randomDigits = Math.floor(1000 + Math.random() * 9000);
+    const newCode = `${prefix}-${randomDigits}`;
+
+    const oldCode = store.kioskAccessCode;
+    store.kioskAccessCode = newCode;
     this.saveStores(stores);
 
+    // Atualiza também nas configurações
+    const settings = this.getSettings();
+    if (storeId === "store-catuai") {
+      settings.kioskCodes.catuai = newCode;
+    } else {
+      settings.kioskCodes.boulevard = newCode;
+    }
+    this.updateSettings(settings);
+
     this.addAuditLog({
-      actionType: "nova_loja",
-      title: `Nova unidade cadastrada: ${store.name}`,
-      details: `Loja ${store.name} em ${store.city} adicionada ao painel da rede Athleta.`,
-      storeId: store.id,
-      authorName: "Proprietário / Admin",
-      newValue: store.name,
+      actionType: "troca_codigo_quiosque",
+      title: `Código de Acesso do Quiosque ${store.name} Renovado`,
+      details: `Novo código gerado pelo administrador geral. Dispositivos antigos precisarão informar o novo código.`,
+      storeId,
+      authorName: "ADM TOTAL (Proprietário)",
+      previousValue: oldCode,
+      newValue: newCode,
     });
 
-    return store;
+    return newCode;
   }
 
   // --- EMPLOYEES ---
@@ -931,7 +1157,9 @@ export class PontoStore {
         localStorage.setItem(STORAGE_KEYS.EMPLOYEES, JSON.stringify(INITIAL_EMPLOYEES));
         return INITIAL_EMPLOYEES;
       }
-      return JSON.parse(data);
+      const parsed: Employee[] = JSON.parse(data);
+      // Filtra apenas Catuaí e Boulevard
+      return parsed.filter((e) => e.storeId === "store-catuai" || e.storeId === "store-boulevard");
     } catch {
       return INITIAL_EMPLOYEES;
     }
@@ -941,29 +1169,6 @@ export class PontoStore {
     if (typeof window === "undefined") return;
     localStorage.setItem(STORAGE_KEYS.EMPLOYEES, JSON.stringify(employees));
     this.notify();
-  }
-
-  public static addEmployee(empData: Omit<Employee, "id">): Employee {
-    const employees = this.getEmployees();
-    const emp: Employee = {
-      ...empData,
-      id: `emp-${Date.now()}`,
-    };
-    employees.push(emp);
-    this.saveEmployees(employees);
-
-    this.addAuditLog({
-      actionType: "novo_funcionario",
-      title: `Novo colaborador cadastrado: ${emp.name}`,
-      details: `Cargo: ${emp.role} | Loja: ${emp.storeId} | Carga: ${emp.contractHoursPerWeek}h | Matrícula: ${emp.matricula}`,
-      employeeId: emp.id,
-      employeeName: emp.name,
-      storeId: emp.storeId,
-      authorName: "Proprietário / Admin",
-      newValue: emp.name,
-    });
-
-    return emp;
   }
 
   public static updateEmployee(id: string, updates: Partial<Employee>): Employee | null {
@@ -978,28 +1183,27 @@ export class PontoStore {
 
     this.addAuditLog({
       actionType: "editar_funcionario",
-      title: `Dados cadastrais atualizados: ${updated.name}`,
-      details: `Atualizações realizadas no perfil do funcionário.`,
+      title: `Atualização de cadastro: ${updated.name}`,
+      details: `Dados do colaborador atualizados no sistema.`,
       employeeId: updated.id,
       employeeName: updated.name,
       storeId: updated.storeId,
-      authorName: "Proprietário / Admin",
-      previousValue: JSON.stringify(previous),
-      newValue: JSON.stringify(updated),
+      authorName: "ADM TOTAL (Proprietário)",
     });
 
     return updated;
   }
 
-  // --- DAY RECORDS & PUNCHES ---
+  // --- DAY RECORDS ---
   public static getDayRecords(): DayTimeRecord[] {
     if (typeof window === "undefined") return [];
     try {
       const data = localStorage.getItem(STORAGE_KEYS.DAY_RECORDS);
       if (!data) {
-        const seeded = generateSeedDayRecords();
-        localStorage.setItem(STORAGE_KEYS.DAY_RECORDS, JSON.stringify(seeded));
-        return seeded;
+        const { records, bankEntries } = generateFullHistoricalDemoData();
+        localStorage.setItem(STORAGE_KEYS.DAY_RECORDS, JSON.stringify(records));
+        localStorage.setItem(STORAGE_KEYS.BANK_OF_HOURS, JSON.stringify(bankEntries));
+        return records;
       }
       return JSON.parse(data);
     } catch {
@@ -1013,14 +1217,142 @@ export class PontoStore {
     this.notify();
   }
 
-  // REGISTRAR PONTO VIA QUIOSQUE / COMPUTADOR DA LOJA
+  // --- BANCO DE HORAS ---
+  public static getBankOfHoursEntries(): BankOfHoursEntry[] {
+    if (typeof window === "undefined") return [];
+    try {
+      const data = localStorage.getItem(STORAGE_KEYS.BANK_OF_HOURS);
+      if (!data) {
+        const { bankEntries } = generateFullHistoricalDemoData();
+        localStorage.setItem(STORAGE_KEYS.BANK_OF_HOURS, JSON.stringify(bankEntries));
+        return bankEntries;
+      }
+      return JSON.parse(data);
+    } catch {
+      return [];
+    }
+  }
+
+  public static saveBankOfHoursEntries(entries: BankOfHoursEntry[]) {
+    if (typeof window === "undefined") return;
+    localStorage.setItem(STORAGE_KEYS.BANK_OF_HOURS, JSON.stringify(entries));
+    this.notify();
+  }
+
+  // Extrato e resumo consolidado do Banco de Horas de um colaborador
+  public static getEmployeeBankSummary(employeeId: string, monthYearPrefix: string = "2026-11"): {
+    previousBalanceMinutes: number;
+    positiveMonthMinutes: number;
+    negativeMonthMinutes: number;
+    currentBalanceMinutes: number;
+    entries: BankOfHoursEntry[];
+  } {
+    const allEntries = this.getBankOfHoursEntries()
+      .filter((e) => e.employeeId === employeeId)
+      .sort((a, b) => a.date.localeCompare(b.date));
+
+    let previousBalanceMinutes = 0;
+    let positiveMonthMinutes = 0;
+    let negativeMonthMinutes = 0;
+    let currentBalanceMinutes = 0;
+
+    allEntries.forEach((entry) => {
+      const isPriorMonth = entry.date < `${monthYearPrefix}-01`;
+      const isCurrentMonth = entry.date.startsWith(monthYearPrefix);
+
+      if (isPriorMonth) {
+        if (entry.type === "credito") {
+          previousBalanceMinutes += entry.minutes;
+        } else {
+          previousBalanceMinutes -= entry.minutes;
+        }
+      }
+
+      if (isCurrentMonth) {
+        if (entry.type === "credito") {
+          positiveMonthMinutes += entry.minutes;
+        } else {
+          negativeMonthMinutes += entry.minutes;
+        }
+      }
+
+      if (entry.type === "credito") {
+        currentBalanceMinutes += entry.minutes;
+      } else {
+        currentBalanceMinutes -= entry.minutes;
+      }
+    });
+
+    return {
+      previousBalanceMinutes,
+      positiveMonthMinutes,
+      negativeMonthMinutes,
+      currentBalanceMinutes,
+      entries: allEntries.reverse(), // mais recentes primeiro
+    };
+  }
+
+  // Lançamento manual de ajuste de Banco de Horas pelo Administrador
+  public static addBankOfHoursAdjustment(params: {
+    employeeId: string;
+    type: "credito" | "debito";
+    minutes: number;
+    reason: string;
+    authorName: string;
+  }): BankOfHoursEntry {
+    const entries = this.getBankOfHoursEntries();
+    const employees = this.getEmployees();
+    const emp = employees.find((e) => e.id === params.employeeId);
+    const storeId = emp?.storeId || "store-catuai";
+
+    const summary = this.getEmployeeBankSummary(params.employeeId);
+    const balanceAfter =
+      params.type === "credito"
+        ? summary.currentBalanceMinutes + params.minutes
+        : summary.currentBalanceMinutes - params.minutes;
+
+    const newEntry: BankOfHoursEntry = {
+      id: `bkh-adj-${Date.now()}`,
+      employeeId: params.employeeId,
+      storeId,
+      date: new Date().toISOString().split("T")[0],
+      type: params.type,
+      minutes: params.minutes,
+      balanceAfterMinutes: balanceAfter,
+      reason: `Ajuste Administrativo: ${params.reason}`,
+      author: params.authorName,
+      isManualAdjustment: true,
+      createdAt: new Date().toISOString(),
+    };
+
+    entries.push(newEntry);
+    this.saveBankOfHoursEntries(entries);
+
+    this.addAuditLog({
+      actionType: "ajuste_banco_horas",
+      title: `Ajuste manual de Banco de Horas: ${emp?.name}`,
+      details: `${params.type === "credito" ? "Crédito" : "Débito"} de ${formatMinutesHuman(
+        params.minutes
+      )}. Justificativa: "${params.reason}". Saldo resultante: ${formatMinutesHuman(balanceAfter)}.`,
+      employeeId: params.employeeId,
+      employeeName: emp?.name,
+      storeId,
+      authorName: params.authorName,
+      previousValue: formatMinutesHuman(summary.currentBalanceMinutes),
+      newValue: formatMinutesHuman(balanceAfter),
+    });
+
+    return newEntry;
+  }
+
+  // --- REGISTRAR PONTO VIA QUIOSQUE DA LOJA ---
   public static recordPunch(params: {
     employeeId: string;
-    storeId: string;
+    storeId: "store-catuai" | "store-boulevard";
     punchType: PunchType;
     photoUrl: string;
     location?: { latitude: number; longitude: number; accuracy: number; address: string; inRange: boolean };
-    deviceType?: "Totem Quiosque Tablet" | "Computador da Loja" | "Dispositivo Mobile Autorizado";
+    deviceType?: "Totem Tablet Catuaí" | "Totem Tablet Boulevard" | "Computador da Loja";
   }): { success: boolean; punch: Punch; record: DayTimeRecord } {
     const now = new Date();
     const dateStr = now.toISOString().split("T")[0];
@@ -1031,7 +1363,6 @@ export class PontoStore {
     const employee = employees.find((e) => e.id === params.employeeId);
     const employeeName = employee ? employee.name : "Funcionário";
 
-    // Busca ou cria o registro do dia
     let dayRecord = records.find((r) => r.employeeId === params.employeeId && r.date === dateStr);
 
     if (!dayRecord) {
@@ -1042,8 +1373,8 @@ export class PontoStore {
         date: dateStr,
         dayOfWeek: now.getDay(),
         punches: [],
-        scheduledEntry: "10:00",
-        scheduledExit: "18:20",
+        scheduledEntry: "09:45",
+        scheduledExit: "18:05",
         scheduledBreak: "13:30 - 14:30",
         isDayOff: false,
         isVacationOrLeave: false,
@@ -1053,12 +1384,13 @@ export class PontoStore {
         balanceMinutes: 0,
         delayMinutes: 0,
         extraMinutes: 0,
+        earlyExitMinutes: 0,
       };
       records.push(dayRecord);
     }
 
-    const nsr = 100000 + Math.floor(Math.random() * 900000);
-    const hash = `sha256-${Date.now()}-${params.employeeId.slice(-4)}-${Math.random().toString(36).substring(2, 8)}`;
+    const nsr = 300000 + Math.floor(Math.random() * 600000);
+    const hash = `sha256-athleta-${Date.now()}-${params.employeeId}`;
 
     const newPunch: Punch = {
       id: `p-${Date.now()}`,
@@ -1067,96 +1399,68 @@ export class PontoStore {
       time: timeStr,
       photoUrl: params.photoUrl,
       location: params.location || {
-        latitude: -23.3421,
-        longitude: -51.1872,
+        latitude: params.storeId === "store-catuai" ? -23.3421 : -23.3089,
+        longitude: params.storeId === "store-catuai" ? -51.1872 : -51.1448,
         accuracy: 5,
-        address: "Shopping Catuaí - Unidade Athleta",
+        address: params.storeId === "store-catuai" ? "Shopping Catuaí - Loja Athleta" : "Shopping Boulevard - Loja Athleta",
         inRange: true,
       },
       device: {
-        type: params.deviceType || "Totem Quiosque Tablet",
+        type: params.deviceType || (params.storeId === "store-catuai" ? "Totem Tablet Catuaí" : "Totem Tablet Boulevard"),
         ip: "192.168.1.100",
-        userAgent: typeof navigator !== "undefined" ? navigator.userAgent : "Athleta Ponto Kiosk/1.0",
+        userAgent: "AthletaKiosk/2.0 (Tablet Fixo)",
       },
       nsr,
       hash,
     };
 
     dayRecord.punches.push(newPunch);
-
-    // Recomputar status e horas
     this.recalculateRecordStatus(dayRecord);
-
     this.saveDayRecords(records);
 
-    // Auditoria oficial
+    // Se concluiu a saída e houve saldo, atualiza o Banco de Horas
+    if (params.punchType === "saida" && dayRecord.balanceMinutes !== 0) {
+      const summary = this.getEmployeeBankSummary(params.employeeId);
+      const balanceAfter = summary.currentBalanceMinutes + dayRecord.balanceMinutes;
+      const bankList = this.getBankOfHoursEntries();
+
+      bankList.push({
+        id: `bkh-real-${Date.now()}`,
+        employeeId: params.employeeId,
+        storeId: params.storeId,
+        date: dateStr,
+        type: dayRecord.balanceMinutes > 0 ? "credito" : "debito",
+        minutes: Math.abs(dayRecord.balanceMinutes),
+        balanceAfterMinutes: balanceAfter,
+        reason: dayRecord.balanceMinutes > 0 ? "Horas extras do dia" : "Diferença negativa de jornada",
+        author: "Sistema Automático Quiosque",
+        createdAt: new Date().toISOString(),
+      });
+      this.saveBankOfHoursEntries(bankList);
+    }
+
     const typeLabel = {
       entrada: "Entrada",
       intervalo_saida: "Saída para Intervalo",
       intervalo_retorno: "Retorno do Intervalo",
-      saida: "Saída do Expediente",
+      saida: "Saída",
     }[params.punchType];
 
     this.addAuditLog({
       actionType: "registro_ponto_quiosque",
-      title: `Marcação realizada: ${typeLabel} - ${employeeName}`,
-      details: `Horário oficial: ${timeStr} | Loja: ${params.storeId} | Dispositivo: ${newPunch.device.type} | NSR: ${nsr} | Foto capturada via Câmera ao vivo`,
+      title: `${typeLabel} — ${employeeName}`,
+      details: `Horário oficial: ${timeStr} | Loja: ${params.storeId} | Selfie capturada ao vivo | NSR: #${nsr}`,
       employeeId: params.employeeId,
       employeeName,
       storeId: params.storeId,
-      authorName: "Sistema Quiosque Athleta",
+      authorName: "Totem Quiosque Loja",
       newValue: `${typeLabel} às ${timeStr}`,
     });
 
     return { success: true, punch: newPunch, record: dayRecord };
   }
 
-  // AJUSTAR MARCAÇÃO COM AUDITORIA TOTAL (NUNCA APAGA SILENCIOSAMENTE)
-  public static adjustPunch(params: {
-    recordId: string;
-    punchId: string;
-    newTime: string;
-    reason: string;
-    authorName: string;
-  }): boolean {
-    const records = this.getDayRecords();
-    const record = records.find((r) => r.id === params.recordId);
-    if (!record) return false;
-
-    const punch = record.punches.find((p) => p.id === params.punchId);
-    if (!punch) return false;
-
-    const employees = this.getEmployees();
-    const emp = employees.find((e) => e.id === record.employeeId);
-    const empName = emp ? emp.name : "Funcionário";
-
-    const oldTime = punch.time;
-    punch.originalTime = punch.originalTime || oldTime;
-    punch.time = params.newTime;
-    punch.isManualAdjustment = true;
-    punch.adjustmentReason = params.reason;
-    punch.adjustedBy = params.authorName;
-    punch.adjustedAt = new Date().toISOString();
-
-    this.recalculateRecordStatus(record);
-    this.saveDayRecords(records);
-
-    this.addAuditLog({
-      actionType: "ajuste_ponto",
-      title: `Ajuste manual de marcação: ${empName}`,
-      details: `Horário original: ${oldTime} alterado para ${params.newTime}. Justificativa: "${params.reason}". Registros originais preservados para auditoria fiscal (Portaria 671 MTE).`,
-      employeeId: record.employeeId,
-      employeeName: empName,
-      storeId: record.storeId,
-      authorName: params.authorName,
-      previousValue: `${punch.type} às ${oldTime}`,
-      newValue: `${punch.type} às ${params.newTime} (Aprovado e Auditado)`,
-    });
-
-    return true;
-  }
-
-  // Recalcular métricas de um dia
+  // Recalcular métricas diárias
   private static recalculateRecordStatus(record: DayTimeRecord) {
     if (record.isDayOff) {
       record.status = "folga";
@@ -1179,7 +1483,7 @@ export class PontoStore {
     const expectedWorkedM = Math.max(0, expectedExitM - expectedEntryM - 60);
     record.expectedWorkedMinutes = expectedWorkedM;
 
-    // Verificar atraso na primeira entrada
+    // Atraso
     const firstEntry = punches.find((p) => p.type === "entrada");
     if (firstEntry) {
       const actualEntryM = timeToMinutes(firstEntry.time);
@@ -1190,7 +1494,7 @@ export class PontoStore {
       }
     }
 
-    // Calcular horas trabalhadas
+    // Horas trabalhadas
     let worked = 0;
     if (punches.length >= 2) {
       const p1 = timeToMinutes(punches[0].time);
@@ -1206,7 +1510,7 @@ export class PontoStore {
     record.totalWorkedMinutes = worked;
     record.balanceMinutes = worked - expectedWorkedM;
 
-    if (punches.length % 2 !== 0 && punches.length < 4) {
+    if (punches.length < 4) {
       record.status = "incompleto";
     } else if (record.balanceMinutes > 15) {
       record.status = "hora_extra";
@@ -1218,18 +1522,84 @@ export class PontoStore {
     }
   }
 
-  // --- SOLICITAÇÕES DE CORREÇÃO ---
+  // --- AUDITORIA DE FOTOS E PRESENÇA (PORTARIA 671) ---
+  public static getAllPunchesForAudit(): {
+    punch: Punch;
+    employee: Employee;
+    store: Store;
+    recordDate: string;
+    dayRecord: DayTimeRecord;
+  }[] {
+    const records = this.getDayRecords();
+    const employees = this.getEmployees();
+    const stores = this.getStores();
+
+    const list: {
+      punch: Punch;
+      employee: Employee;
+      store: Store;
+      recordDate: string;
+      dayRecord: DayTimeRecord;
+    }[] = [];
+
+    records.forEach((rec) => {
+      const emp = employees.find((e) => e.id === rec.employeeId);
+      const store = stores.find((s) => s.id === rec.storeId);
+      if (!emp || !store) return;
+
+      rec.punches.forEach((p) => {
+        list.push({
+          punch: p,
+          employee: emp,
+          store,
+          recordDate: rec.date,
+          dayRecord: rec,
+        });
+      });
+    });
+
+    // Ordena mais recentes primeiro
+    return list.sort((a, b) => b.punch.timestamp.localeCompare(a.punch.timestamp));
+  }
+
+  // --- LIMPEZA DE BASE DE DEMONSTRAÇÃO (SEM APAGAR CADASTROS REAIS) ---
+  public static clearDemoDataOnly() {
+    const records = this.getDayRecords().filter((r) => !r.isDemoData);
+    const bank = this.getBankOfHoursEntries().filter((b) => !b.isDemoData);
+    this.saveDayRecords(records);
+    this.saveBankOfHoursEntries(bank);
+
+    this.addAuditLog({
+      actionType: "limpeza_base_demo",
+      title: "Limpeza de Base de Demonstração Executada",
+      details: "Todos os registros e marcações simuladas de Outubro/Novembro foram expurgados. Cadastros de colaboradores e lojas preservados.",
+      authorName: "ADM TOTAL (Proprietário)",
+    });
+  }
+
+  // Regenerar toda a base de demonstração
+  public static regenerateDemoData() {
+    const { records, bankEntries } = generateFullHistoricalDemoData();
+    this.saveDayRecords(records);
+    this.saveBankOfHoursEntries(bankEntries);
+
+    this.addAuditLog({
+      actionType: "limpeza_base_demo",
+      title: "Base de Demonstração Regenerada",
+      details: "Registros simulados de Outubro e Novembro (01 a 11/11/2026) reinseridos para testes.",
+      authorName: "ADM TOTAL (Proprietário)",
+    });
+  }
+
+  // --- SOLICITAÇÕES DE CORREÇÃO (COLABORADOR -> ADMIN) ---
   public static getCorrections(): CorrectionRequest[] {
-    if (typeof window === "undefined") return INITIAL_CORRECTIONS;
+    if (typeof window === "undefined") return [];
     try {
       const data = localStorage.getItem(STORAGE_KEYS.CORRECTIONS);
-      if (!data) {
-        localStorage.setItem(STORAGE_KEYS.CORRECTIONS, JSON.stringify(INITIAL_CORRECTIONS));
-        return INITIAL_CORRECTIONS;
-      }
+      if (!data) return [];
       return JSON.parse(data);
     } catch {
-      return INITIAL_CORRECTIONS;
+      return [];
     }
   }
 
@@ -1249,6 +1619,16 @@ export class PontoStore {
     };
     list.unshift(newReq);
     this.saveCorrections(list);
+
+    this.addAuditLog({
+      actionType: "aprovacao_solicitacao",
+      title: `Solicitação de Correção enviada por funcionário`,
+      details: `Solicitação para ${req.punchType} às ${req.requestedTime} no dia ${req.date}. Motivo: "${req.reason}"`,
+      employeeId: req.employeeId,
+      storeId: req.storeId,
+      authorName: "Colaborador",
+    });
+
     return newReq;
   }
 
@@ -1268,7 +1648,6 @@ export class PontoStore {
     item.reviewNotes = params.reviewNotes;
     this.saveCorrections(list);
 
-    // Se aprovada, aplicar no registro do ponto
     if (params.approved) {
       const records = this.getDayRecords();
       let record = records.find((r) => r.employeeId === item.employeeId && r.date === item.date);
@@ -1277,12 +1656,12 @@ export class PontoStore {
         record = {
           id: `rec-${item.employeeId}-${item.date}`,
           employeeId: item.employeeId,
-          storeId: item.storeId,
+          storeId: item.storeId as "store-catuai" | "store-boulevard",
           date: item.date,
           dayOfWeek: new Date(item.date).getDay(),
           punches: [],
-          scheduledEntry: "10:00",
-          scheduledExit: "18:20",
+          scheduledEntry: "09:45",
+          scheduledExit: "18:05",
           scheduledBreak: "13:30 - 14:30",
           isDayOff: false,
           isVacationOrLeave: false,
@@ -1292,34 +1671,34 @@ export class PontoStore {
           balanceMinutes: 0,
           delayMinutes: 0,
           extraMinutes: 0,
+          earlyExitMinutes: 0,
         };
         records.push(record);
       }
 
-      // Adiciona o punch aprovado
-      const nsr = 100000 + Math.floor(Math.random() * 900000);
+      const nsr = 400000 + Math.floor(Math.random() * 500000);
       record.punches.push({
         id: `p-${Date.now()}`,
         type: item.punchType,
         timestamp: `${item.date}T${item.requestedTime}:00.000Z`,
         time: item.requestedTime,
-        photoUrl: generateFaceAvatar("Correção", "Aprovada", "OK", item.requestedTime),
+        photoUrl: generateDemoSelfie("Aprovado", "Correção", "OK", item.requestedTime, item.storeId),
         location: {
           latitude: -23.3421,
           longitude: -51.1872,
-          accuracy: 10,
-          address: "Correção Administrativa Homologada",
+          accuracy: 5,
+          address: "Homologado pelo Administrador",
           inRange: true,
         },
         device: {
           type: "Computador da Loja",
           ip: "192.168.1.1",
-          userAgent: "Painel Administrativo Proprietários",
+          userAgent: "ADM TOTAL Painel",
         },
         nsr,
         hash: `sha256-corr-${nsr}`,
         isManualAdjustment: true,
-        adjustmentReason: `Solicitação aprovada: ${item.reason}`,
+        adjustmentReason: `Solicitação homologada: ${item.reason}`,
         adjustedBy: params.reviewedBy,
         adjustedAt: new Date().toISOString(),
       });
@@ -1331,35 +1710,25 @@ export class PontoStore {
     this.addAuditLog({
       actionType: params.approved ? "aprovacao_solicitacao" : "rejeicao_solicitacao",
       title: `${params.approved ? "Aprovação" : "Rejeição"} de Correção de Ponto`,
-      details: `Solicitação #${params.requestId} para o funcionário ${item.employeeId} na data ${item.date}. Parecer: ${params.reviewNotes || "Sem observações adicionais"}.`,
+      details: `Solicitação #${item.id} para ${item.date}. Parecer: ${params.reviewNotes || "Sem observações"}`,
       employeeId: item.employeeId,
       storeId: item.storeId,
       authorName: params.reviewedBy,
-      newValue: params.approved ? "Aprovada e integrada ao espelho" : "Rejeitada",
+      newValue: params.approved ? "Aprovada e incorporada ao espelho" : "Rejeitada",
     });
 
     return true;
   }
 
-  // --- ESCALAS & OVERRIDES ---
+  // --- SCHEDULES & OVERRIDES ---
   public static getSchedules(): ScheduleTemplate[] {
     if (typeof window === "undefined") return INITIAL_SCHEDULES;
     try {
       const data = localStorage.getItem(STORAGE_KEYS.SCHEDULES);
-      if (!data) {
-        localStorage.setItem(STORAGE_KEYS.SCHEDULES, JSON.stringify(INITIAL_SCHEDULES));
-        return INITIAL_SCHEDULES;
-      }
-      return JSON.parse(data);
+      return data ? JSON.parse(data) : INITIAL_SCHEDULES;
     } catch {
       return INITIAL_SCHEDULES;
     }
-  }
-
-  public static saveSchedules(schedules: ScheduleTemplate[]) {
-    if (typeof window === "undefined") return;
-    localStorage.setItem(STORAGE_KEYS.SCHEDULES, JSON.stringify(schedules));
-    this.notify();
   }
 
   public static getScheduleOverrides(): DateScheduleOverride[] {
@@ -1381,46 +1750,19 @@ export class PontoStore {
     };
     list.push(newOverride);
     localStorage.setItem(STORAGE_KEYS.SCHEDULE_OVERRIDES, JSON.stringify(list));
-
-    // Atualiza o registro daquele dia se já existir
-    const records = this.getDayRecords();
-    const dayRecord = records.find((r) => r.employeeId === override.employeeId && r.date === override.date);
-    if (dayRecord) {
-      dayRecord.isDayOff = override.isDayOff;
-      if (!override.isDayOff) {
-        dayRecord.scheduledEntry = override.entryTime;
-        dayRecord.scheduledExit = override.exitTime;
-        dayRecord.scheduledBreak = `${override.breakStartTime} - ${override.breakEndTime}`;
-      }
-      this.recalculateRecordStatus(dayRecord);
-      this.saveDayRecords(records);
-    }
-
-    this.addAuditLog({
-      actionType: "escala_data_especifica",
-      title: `Escala customizada em data específica`,
-      details: `Escala da data ${override.date} alterada para o colaborador ${override.employeeId}. Motivo: ${override.reason}`,
-      employeeId: override.employeeId,
-      authorName: override.updatedBy,
-      newValue: override.isDayOff ? "Folga" : `${override.entryTime} às ${override.exitTime}`,
-    });
-
     this.notify();
     return newOverride;
   }
 
   // --- AUDIT LOGS ---
   public static getAuditLogs(): AuditLog[] {
-    if (typeof window === "undefined") return INITIAL_AUDIT_LOGS;
+    if (typeof window === "undefined") return [];
     try {
       const data = localStorage.getItem(STORAGE_KEYS.AUDIT_LOGS);
-      if (!data) {
-        localStorage.setItem(STORAGE_KEYS.AUDIT_LOGS, JSON.stringify(INITIAL_AUDIT_LOGS));
-        return INITIAL_AUDIT_LOGS;
-      }
+      if (!data) return [];
       return JSON.parse(data);
     } catch {
-      return INITIAL_AUDIT_LOGS;
+      return [];
     }
   }
 
@@ -1457,28 +1799,6 @@ export class PontoStore {
     const current = this.getSettings();
     const updated = { ...current, ...settings };
     localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(updated));
-
-    this.addAuditLog({
-      actionType: "configuracao_alterada",
-      title: "Configurações gerais do sistema atualizadas",
-      details: "Parâmetros de tolerância, intervalo e quiosque ajustados pelo proprietário.",
-      authorName: "Proprietário / Admin",
-    });
-
-    this.notify();
-  }
-
-  // Resetar dados para demonstração limpa
-  public static resetDemoData() {
-    if (typeof window === "undefined") return;
-    localStorage.setItem(STORAGE_KEYS.STORES, JSON.stringify(INITIAL_STORES));
-    localStorage.setItem(STORAGE_KEYS.EMPLOYEES, JSON.stringify(INITIAL_EMPLOYEES));
-    localStorage.setItem(STORAGE_KEYS.SCHEDULES, JSON.stringify(INITIAL_SCHEDULES));
-    localStorage.setItem(STORAGE_KEYS.DAY_RECORDS, JSON.stringify(generateSeedDayRecords()));
-    localStorage.setItem(STORAGE_KEYS.AUDIT_LOGS, JSON.stringify(INITIAL_AUDIT_LOGS));
-    localStorage.setItem(STORAGE_KEYS.CORRECTIONS, JSON.stringify(INITIAL_CORRECTIONS));
-    localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(INITIAL_SETTINGS));
-    localStorage.removeItem(STORAGE_KEYS.SCHEDULE_OVERRIDES);
     this.notify();
   }
 }
