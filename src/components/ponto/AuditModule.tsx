@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { usePonto } from "../../hooks/use-ponto";
 import { CorrectionRequest, AuditLog } from "../../lib/ponto-store";
 import {

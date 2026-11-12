@@ -48,6 +48,10 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
     window.location.href = "/";
   };
 
+  const errorMessage =
+    error?.message ||
+    (typeof error === "string" ? error : error ? String(error) : "");
+
   return (
     <div className="flex min-h-screen items-center justify-center bg-[#f8fafc] px-4 text-center">
       <div className="max-w-md w-full bg-white p-6 md:p-8 rounded-3xl border border-slate-200 shadow-xl space-y-4">
@@ -61,9 +65,9 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
           Você pode tentar recarregar os dados do sistema ou restaurar os dados originais.
         </p>
 
-        {error?.message && (
+        {errorMessage && (
           <div className="p-3 bg-red-50 text-red-700 rounded-xl text-xs font-mono text-left overflow-x-auto border border-red-200 break-words max-h-32">
-            {error.message}
+            {errorMessage}
           </div>
         )}
 
